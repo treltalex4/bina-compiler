@@ -80,6 +80,7 @@ struct Token {
     size_t col;
 };
 
-std::string tokenTypeToString(TokenType type);
+std::string tokenTypeToString(TokenType type);  // тип токена в строку
 
-std::optional<TokenType> getKeywordType(const std::string& word);
+std::optional<TokenType> getKeywordType(
+    const std::string& word);  // ключевое слово в тип токена
