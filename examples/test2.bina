@@ -1,0 +1,69 @@
+// Пример сложной программы на Bina для комплексного тестирования Лексера
+
+namespace MathLib {
+    // Структура для 2D вектора
+    struct Vector2D {
+        x: float64;
+        y: float64;
+    }
+
+    // Скалярное произведение
+    fn dot_product(v1: MathLib::Vector2D, v2: MathLib::Vector2D) -> float64 {
+        return (v1.x * v2.x) + (v1.y * v2.y);
+    }
+}
+
+// Тестирование массивов и циклов
+fn process_array(arr: [10]int32, factor: int32) -> void {
+    let mut i: int = 0;
+    while i < len(arr) {
+        if arr[i] % 2 == 0 {
+            arr[i] = arr[i] * factor;
+        } else if arr[i] < 0 {
+            continue;
+        } else {
+            break;
+        }
+        i = i + 1; // Увеличиваем счетчик
+    }
+}
+
+fn main() -> int {
+    // 1. Тестирование нестандартных идентификаторов и ключевых слов
+    let _is_valid: bool = true;
+    
+    // Тест escape-последовательностей в строке
+    let mut myStr: string = "Hello, \"Bina\"!\n\tTest string logic.\\";
+    
+    // 2. Тестирование различных числовых литералов с суффиксами и без
+    let bigNum: uint64 = 123456789u64;
+    let smallNum: int8 = -42i8;
+    let pi: float32 = 3.1415f32;
+    let default_float = 0.5;
+
+    // 3. Тестирование многосоставных логических выражений и операторов сравнения
+    if (bigNum >= 100u64) && (pi != 0.0f32) || !_is_valid {
+        print("Complex condition met!");
+    }
+
+    // 4. Использование namespace, struct и обращения к полям через точку
+    let v1: MathLib::Vector2D;
+    v1.x = 1.0f64;
+    v1.y = -2.5f64;
+
+    let v2: MathLib::Vector2D;
+    v2.x = 0.0;
+    v2.y = 5.5;
+
+    let dp: float64 = MathLib::dot_product(v1, v2);
+
+    // 5. Тестирование приведения типов (cast) и вызова встроенных функций
+    let result_int: int32 = cast<int32>(dp);
+    
+    if result_int < 0 {
+        panic("Dot product negative!");
+    }
+
+    input();  // Ждем ввода от пользователя
+    exit(0);
+}

@@ -1,0 +1,11 @@
+// простая функция
+fn add(a: int32, b: int32) -> int32 {
+    return a + b;
+}
+
+fn main() -> void {
+    let x: int32 = 10;
+    let mut y: int32 = 20;
+    y = add(x, y);
+    print(y);
+}

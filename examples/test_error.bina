@@ -1,0 +1,4 @@
+fn main() -> void {
+    let x: int32 = 42;
+    let y = x @ 10;
+}
