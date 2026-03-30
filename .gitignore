@@ -45,3 +45,6 @@ test/
 
 # build
 build/
+
+#clang
+.clang-format
