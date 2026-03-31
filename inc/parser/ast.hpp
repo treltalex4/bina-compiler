@@ -53,6 +53,39 @@ struct StructDecl;
 struct NamespaceDecl;
 struct TypeAliasDecl;
 
+// определение простых типов
+struct IntLiteral {
+    std::string value;
+};
+
+struct FloatLiteral {
+    std::string value;
+};
+
+struct StringLiteral {
+    std::string value;
+};
+
+struct BoolLiteral {
+    bool value;
+};
+
+struct Identifier {
+    std::vector<std::string> parts;
+};
+
+struct SimpleType {
+    std::string name;
+};
+
+struct QualifiedType {
+    std::vector<std::string> parts;
+};
+
+struct BreakStmt {};
+
+struct ContinueStmt {};
+
 // выражения
 using ExprNode =
     std::variant<IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
