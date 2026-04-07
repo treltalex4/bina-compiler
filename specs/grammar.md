@@ -43,7 +43,7 @@ comment    = "//" { any_char_except_newline } "\n" ;
 fn       let      mut      return   if       else
 while    break    continue struct   namespace type
 cast     true     false    print    input     exit
-panic    len      void
+panic    len      void     impl
 ```
 
 ### Идентификаторы
@@ -121,7 +121,8 @@ program = { top_level_decl } ;
 top_level_decl = fn_decl
                | struct_decl
                | namespace_decl
-               | type_alias_decl ;
+               | type_alias_decl
+               | impl_decl ;
 ```
 
 Выражения и инструкции допускаются только внутри тела функции.
@@ -153,6 +154,30 @@ fn main() -> int { ... }
 struct_decl = "struct" IDENT "{" { struct_field } "}" ;
 
 struct_field = IDENT ":" type_expr ";" ;
+```
+
+#### Реализация методов структуры
+
+```ebnf
+impl_decl = "impl" IDENT "{" { fn_decl } "}" ;
+```
+
+Блок `impl` привязывает функции (методы) к структуре. Первый параметр метода
+должен называться `self` и иметь тип соответствующей структуры.
+Вызов метода: `expr "." IDENT "(" [ arg_list ] ")"` — объект передаётся как `self`.
+
+Пример:
+```bina
+struct Point {
+    x: float64;
+    y: float64;
+}
+
+impl Point {
+    fn length(self: Point) -> float64 {
+        return self.x * self.x + self.y * self.y;
+    }
+}
 ```
 
 #### Пространство имён
@@ -217,11 +242,28 @@ stmt = var_decl_stmt
 #### Объявление переменной
 
 ```ebnf
-var_decl_stmt = ( "let" | "mut" ) IDENT ":" type_expr "=" expr ";" ;
+var_decl_stmt = ( "let" | "mut" ) IDENT [ ":" type_expr ] "=" expr ";" ;
 ```
 
 - `let` — иммутабельная переменная (присваивание после объявления запрещено)
 - `mut` — мутабельная переменная
+
+Указание типа — опционально (вывод типов). Если тип не указан явно,
+компилятор выводит его из выражения-инициализатора:
+- Целочисленный литерал без суффикса → `int32`
+- Вещественный литерал без суффикса → `float64`
+- Литерал с суффиксом → соответствующий тип (`42u8` → `uint8`)
+- Строковый литерал → `string`
+- Булев литерал → `bool`
+- Вызов функции → тип возврата функции
+
+Примеры:
+```bina
+let x = 42;          // тип выведен: int32
+let y = 3.14;        // тип выведен: float64
+let s = "hello";     // тип выведен: string
+let z: uint8 = 255;  // тип указан явно
+```
 
 Начальное значение обязательно — использование неинициализированной переменной
 является ошибкой компиляции.
@@ -486,6 +528,56 @@ fn main() -> int {
 
     if greeting == "hello world" {
         print("match");
+    }
+
+    return 0;
+}
+```
+
+### Вывод типов
+
+```bina
+fn main() -> int {
+    let x = 42;              // int32 (вывод из литерала)
+    let pi = 3.14;           // float64
+    let name = "Bina";       // string
+    let flag = true;         // bool
+    let byte = 255u8;        // uint8 (из суффикса)
+    mut counter = 0i64;      // int64 (мутабельная, тип из суффикса)
+
+    counter = counter + 1;
+    print(counter);
+    return 0;
+}
+```
+
+### Методы структуры (impl)
+
+```bina
+struct Rect {
+    width:  float64;
+    height: float64;
+}
+
+impl Rect {
+    fn area(self: Rect) -> float64 {
+        return self.width * self.height;
+    }
+
+    fn is_square(self: Rect) -> bool {
+        return self.width == self.height;
+    }
+}
+
+fn main() -> int {
+    let r = Rect { width: 10.0, height: 5.0 };
+    let a = r.area();
+    print(a);
+
+    if r.is_square() {
+        print("square");
+    } else {
+        print("rectangle");
     }
 
     return 0;
