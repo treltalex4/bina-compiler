@@ -51,6 +51,7 @@ struct FunctionDecl;
 struct StructDecl;
 struct NamespaceDecl;
 struct TypeAliasDecl;
+struct ImplDecl;
 
 // определение простых типов
 struct IntLiteral {
@@ -85,6 +86,8 @@ struct BreakStmt {};
 
 struct ContinueStmt {};
 
+struct NullStmt {};
+
 // выражения
 using ExprNode =
     std::variant<IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
@@ -113,7 +116,7 @@ using StmtNode =
     std::variant<std::unique_ptr<LetStmt>, std::unique_ptr<AssignStmt>,
                  std::unique_ptr<IfStmt>, std::unique_ptr<WhileStmt>,
                  std::unique_ptr<ReturnStmt>, std::unique_ptr<ExprStmt>,
-                 std::unique_ptr<Block>, BreakStmt, ContinueStmt>;
+                 std::unique_ptr<Block>, BreakStmt, ContinueStmt, NullStmt>;
 
 struct Stmt {
     StmtNode node;
@@ -123,8 +126,8 @@ struct Stmt {
 // объявления
 using DeclNode =
     std::variant<std::unique_ptr<FunctionDecl>, std::unique_ptr<StructDecl>,
-                 std::unique_ptr<NamespaceDecl>,
-                 std::unique_ptr<TypeAliasDecl>>;
+                 std::unique_ptr<NamespaceDecl>, std::unique_ptr<TypeAliasDecl>,
+                 std::unique_ptr<ImplDecl>>;
 
 struct Decl {
     DeclNode node;
@@ -179,8 +182,6 @@ struct StructLiteral {
     std::vector<FieldInit> fields;
 };
 
-
-
 // структуры
 struct ArrayType {
     std::string size;
@@ -201,7 +202,7 @@ struct Block {
 struct LetStmt {
     bool is_mutable;
     std::string name;
-    TypeExpr type;
+    std::optional<TypeExpr> type;
     Expr init;
 };
 
@@ -257,6 +258,11 @@ struct NamespaceDecl {
 struct TypeAliasDecl {
     std::string name;
     TypeExpr type;
+};
+
+struct ImplDecl {
+    std::string struct_name;
+    std::vector<std::unique_ptr<FunctionDecl>> methods;
 };
 
 // корень

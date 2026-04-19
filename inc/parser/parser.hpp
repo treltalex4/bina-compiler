@@ -19,6 +19,9 @@ class Parser {
     std::string m_filename;
     size_t m_pos = 0;
 
+    std::vector<std::string> m_errors;
+    bool m_allow_struct_lit = true;
+
     const Token& peek() const;
     const Token& peekNext() const;
     const Token& advance();
@@ -30,16 +33,21 @@ class Parser {
 
     bool isEnd() const;
 
-    std::string error(const std::string& message) const;
+    NodeLocation makeLoc(const Token& token) const;
 
-    // парсинг объявлений врехнего уровня
+    std::string error(const std::string& message);
+    void synchronize();
+
+    // парсинг объявлений верхнего уровня
     Decl parseDeclaration();
     Decl parseFunctionDecl();
     Decl parseStructDecl();
     Decl parseNamespaceDecl();
-    Decl parseTypaAliasDecl();
+    Decl parseTypeAliasDecl();
+    Decl parseImplDecl();
 
     Param parseParam();
+    StructField parseStructField();
 
     // парсинг инструкций
     Stmt parseStatement();
@@ -47,6 +55,7 @@ class Parser {
     Stmt parseIfStmt();
     Stmt parseWhileStmt();
     Stmt parseReturnStmt();
+    Stmt parseAssignOrExprStmt();
     Block parseBlock();
 
     // парсинг выражений
@@ -60,13 +69,16 @@ class Parser {
     Expr parsePostfix();
     Expr parsePrimary();
 
+    Identifier parseQualifiedIdent();
+    Expr parseArrayLiteral();
+    Expr parseCastExpr();
+    Expr parseStructLiteralRest(Identifier name, NodeLocation loc);
+    FieldInit parseFieldInit();
+
     // парсинг типов
     TypeExpr parseType();
+    TypeExpr parseArrayType();
     TypeExpr parseQualifiedName();
 };
 
-struct Test {
-    int lex = 2342;
-};
-
-};  // namespace Parser
+}  // namespace Parser

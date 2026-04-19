@@ -27,6 +27,7 @@ enum class TokenType {
     KW_CONTINUE,   // continue
     KW_STRUCT,     // struct
     KW_NAMESPACE,  // namespace
+    KW_IMPL,       // impl
     KW_TYPE,       // type
     KW_CAST,       // cast
     KW_VOID,       // void

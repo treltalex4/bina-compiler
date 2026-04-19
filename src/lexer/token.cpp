@@ -38,6 +38,8 @@ std::string tokenTypeToString(TokenType type) {
             return "KW_STRUCT";
         case TokenType::KW_NAMESPACE:
             return "KW_NAMESPACE";
+        case TokenType::KW_IMPL:
+            return "KW_IMPL";
         case TokenType::KW_TYPE:
             return "KW_TYPE";
         case TokenType::KW_CAST:
@@ -127,6 +129,7 @@ std::optional<TokenType> getKeywordType(const std::string& word) {
         {"continue", TokenType::KW_CONTINUE},
         {"struct", TokenType::KW_STRUCT},
         {"namespace", TokenType::KW_NAMESPACE},
+        {"impl", TokenType::KW_IMPL},
         {"type", TokenType::KW_TYPE},
         {"cast", TokenType::KW_CAST},
         {"void", TokenType::KW_VOID},
