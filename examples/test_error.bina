@@ -1,4 +1,24 @@
-fn main() -> void {
-    let x: int32 = 42;
-    let y = x @ 10;
+fn add(a: int32, b: int32) -> int32 {
+    return a + b;
+}
+
+fn broken1() -> int32 {
+    let x = ;
+    return x;
+}
+
+fn broken2() -> int32 {
+    let y: int32 = 10
+    return y + ;
+}
+
+fn broken3() -> int32 {
+    if true && {
+        return 1;
+    }
+    return 0;
+}
+
+fn main() -> int {
+    return add(1, 2);
 }

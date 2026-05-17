@@ -1,0 +1,14 @@
+struct Point {
+    x: float64;
+    y: float64;
+}
+
+impl Point {
+    fn length(self: Point) -> float64 {
+        return self.x + self.y;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

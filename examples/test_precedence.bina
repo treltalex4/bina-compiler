@@ -1,0 +1,12 @@
+struct Vec {
+    x: int32;
+    y: int32;
+}
+
+fn main() -> int {
+    let a: int32 = 1 + 2 * 3;
+    let b: bool = true && false || true;
+    let v = Vec { x: 10, y: 20 };
+    let c: int32 = -v.x;
+    return 0;
+}
