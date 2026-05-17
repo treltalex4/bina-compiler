@@ -1,11 +1,7 @@
-#include "lexer/lexer.hpp"
+module bina.lexer;
 
-#include <cstddef>
-#include <expected>
-#include <string>
-#include <vector>
-
-#include "lexer/token.hpp"
+import std;
+import bina.lexer.token;
 
 namespace Lexer {
 Lexer::Lexer(const std::string& source, const std::string& filename)
@@ -61,8 +57,8 @@ std::expected<std::vector<Token>, std::string> Lexer::tokenize() {
 
         if (isEnd()) break;
 
-        size_t startLine = m_line;
-        size_t startCol = m_col;
+        std::size_t startLine = m_line;
+        std::size_t startCol = m_col;
 
         char c = advance();
 

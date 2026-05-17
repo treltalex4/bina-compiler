@@ -1,12 +1,9 @@
-#pragma once
+export module bina.lexer;
 
-#include <expected>
-#include <string>
-#include <vector>
+import std;
+import bina.lexer.token;
 
-#include "token.hpp"
-
-namespace Lexer {
+export namespace Lexer {
 
 class Lexer {
    public:
@@ -18,9 +15,9 @@ class Lexer {
     std::string m_source;
     std::string m_filename;
 
-    size_t m_pos = 0;
-    size_t m_line = 1;
-    size_t m_col = 1;
+    std::size_t m_pos = 0;
+    std::size_t m_line = 1;
+    std::size_t m_col = 1;
 
     char peek() const;      // взять текущий символ
     char peekNext() const;  // взять следующий символ

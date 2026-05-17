@@ -1,18 +1,12 @@
-#pragma once
+export module bina.parser.ast;
 
-#include <iosfwd>
-#include <memory>
-#include <optional>
-#include <string>
-#include <variant>
-#include <vector>
+import std;
+import bina.lexer.token;
 
-#include "lexer/token.hpp"
-
-namespace Parser {
+export namespace Parser {
 struct NodeLocation {
-    size_t line = 0;
-    size_t col = 0;
+    std::size_t line = 0;
+    std::size_t col = 0;
 };
 
 // forward declaration
