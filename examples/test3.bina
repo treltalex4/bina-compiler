@@ -1,0 +1,1647 @@
+// ============================================================
+// test3.bina — Large stress test for Bina lexer & parser
+// ~800 lines covering all declared language features:
+//   type aliases, namespaces (nested), structs, impl blocks,
+//   all numeric types & suffixes, arrays, casts, all operators,
+//   if/else-if/else, while/break/continue, return, built-ins,
+//   string ops, field access, array indexing, qualified names
+// ============================================================
+
+// --- Global type aliases ---
+type Scalar  = float64;
+type Index   = int32;
+type Count   = int64;
+type Flag    = bool;
+type Label   = string;
+
+// ============================================================
+// NAMESPACE: Geometry
+// ============================================================
+namespace Geometry {
+
+    struct Vec2 {
+        x: float64;
+        y: float64;
+    }
+
+    struct Vec3 {
+        x: float64;
+        y: float64;
+        z: float64;
+    }
+
+    struct AABB {
+        min_x: float64;
+        min_y: float64;
+        max_x: float64;
+        max_y: float64;
+    }
+
+    struct Segment {
+        ax: float64;
+        ay: float64;
+        bx: float64;
+        by: float64;
+    }
+
+    fn make_vec2(x: float64, y: float64) -> Vec2 {
+        return Vec2 { x: x, y: y };
+    }
+
+    fn make_vec3(x: float64, y: float64, z: float64) -> Vec3 {
+        return Vec3 { x: x, y: y, z: z };
+    }
+
+    fn distance_sq2(a: Vec2, b: Vec2) -> float64 {
+        let dx: float64 = b.x - a.x;
+        let dy: float64 = b.y - a.y;
+        return dx * dx + dy * dy;
+    }
+
+    fn distance_sq3(a: Vec3, b: Vec3) -> float64 {
+        let dx: float64 = b.x - a.x;
+        let dy: float64 = b.y - a.y;
+        let dz: float64 = b.z - a.z;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    fn dot2(a: Vec2, b: Vec2) -> float64 {
+        return a.x * b.x + a.y * b.y;
+    }
+
+    fn dot3(a: Vec3, b: Vec3) -> float64 {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    fn length_sq2(v: Vec2) -> float64 {
+        return v.x * v.x + v.y * v.y;
+    }
+
+    fn length_sq3(v: Vec3) -> float64 {
+        return v.x * v.x + v.y * v.y + v.z * v.z;
+    }
+
+    fn add2(a: Vec2, b: Vec2) -> Vec2 {
+        return Vec2 { x: a.x + b.x, y: a.y + b.y };
+    }
+
+    fn sub2(a: Vec2, b: Vec2) -> Vec2 {
+        return Vec2 { x: a.x - b.x, y: a.y - b.y };
+    }
+
+    fn scale2(v: Vec2, f: float64) -> Vec2 {
+        return Vec2 { x: v.x * f, y: v.y * f };
+    }
+
+    fn negate2(v: Vec2) -> Vec2 {
+        return Vec2 { x: 0.0 - v.x, y: 0.0 - v.y };
+    }
+
+    fn add3(a: Vec3, b: Vec3) -> Vec3 {
+        return Vec3 { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+    }
+
+    fn scale3(v: Vec3, f: float64) -> Vec3 {
+        return Vec3 { x: v.x * f, y: v.y * f, z: v.z * f };
+    }
+
+    fn midpoint2(a: Vec2, b: Vec2) -> Vec2 {
+        return Vec2 { x: (a.x + b.x) / 2.0, y: (a.y + b.y) / 2.0 };
+    }
+
+    fn aabb_contains(box: AABB, p: Vec2) -> bool {
+        return (p.x >= box.min_x) && (p.x <= box.max_x)
+            && (p.y >= box.min_y) && (p.y <= box.max_y);
+    }
+
+    fn aabb_area(box: AABB) -> float64 {
+        return (box.max_x - box.min_x) * (box.max_y - box.min_y);
+    }
+
+    fn segment_length_sq(s: Segment) -> float64 {
+        let dx: float64 = s.bx - s.ax;
+        let dy: float64 = s.by - s.ay;
+        return dx * dx + dy * dy;
+    }
+}
+
+// ============================================================
+// NAMESPACE: Stats
+// ============================================================
+namespace Stats {
+
+    fn sum_i32(arr: [8]int32) -> int32 {
+        mut acc: int32 = 0;
+        mut i: int32 = 0;
+        while i < 8 {
+            acc = acc + arr[i];
+            i = i + 1;
+        }
+        return acc;
+    }
+
+    fn max_i32(arr: [8]int32) -> int32 {
+        mut best: int32 = arr[0];
+        mut i: int32 = 1;
+        while i < 8 {
+            if arr[i] > best {
+                best = arr[i];
+            }
+            i = i + 1;
+        }
+        return best;
+    }
+
+    fn min_i32(arr: [8]int32) -> int32 {
+        mut best: int32 = arr[0];
+        mut i: int32 = 1;
+        while i < 8 {
+            if arr[i] < best {
+                best = arr[i];
+            }
+            i = i + 1;
+        }
+        return best;
+    }
+
+    fn count_positive(arr: [8]int32) -> int32 {
+        mut cnt: int32 = 0;
+        mut i: int32 = 0;
+        while i < 8 {
+            if arr[i] > 0 {
+                cnt = cnt + 1;
+            }
+            i = i + 1;
+        }
+        return cnt;
+    }
+
+    fn count_negative(arr: [8]int32) -> int32 {
+        mut cnt: int32 = 0;
+        mut i: int32 = 0;
+        while i < 8 {
+            if arr[i] < 0 {
+                cnt = cnt + 1;
+            }
+            i = i + 1;
+        }
+        return cnt;
+    }
+
+    fn sum_f64(arr: [6]float64) -> float64 {
+        mut acc: float64 = 0.0;
+        mut i: int32 = 0;
+        while i < 6 {
+            acc = acc + arr[i];
+            i = i + 1;
+        }
+        return acc;
+    }
+
+    fn average_f64(arr: [6]float64) -> float64 {
+        return Stats::sum_f64(arr) / 6.0;
+    }
+}
+
+// ============================================================
+// NAMESPACE: Physics
+// ============================================================
+namespace Physics {
+
+    type Mass  = float64;
+    type Speed = float64;
+
+    struct Particle {
+        px: float64;
+        py: float64;
+        vx: float64;
+        vy: float64;
+        mass: float64;
+        alive: bool;
+    }
+
+    struct Spring {
+        rest_len: float64;
+        stiffness: float64;
+        damping: float64;
+    }
+
+    fn make_particle(px: float64, py: float64, mass: float64) -> Particle {
+        return Particle {
+            px: px, py: py,
+            vx: 0.0, vy: 0.0,
+            mass: mass,
+            alive: true,
+        };
+    }
+
+    fn step_particle(p: Particle, dt: float64, ax: float64, ay: float64) -> Particle {
+        let nvx: float64 = p.vx + ax * dt;
+        let nvy: float64 = p.vy + ay * dt;
+        let npx: float64 = p.px + nvx * dt;
+        let npy: float64 = p.py + nvy * dt;
+        return Particle {
+            px: npx, py: npy,
+            vx: nvx, vy: nvy,
+            mass: p.mass,
+            alive: p.alive,
+        };
+    }
+
+    fn kinetic_energy(p: Particle) -> float64 {
+        let v2: float64 = p.vx * p.vx + p.vy * p.vy;
+        return 0.5 * p.mass * v2;
+    }
+
+    fn speed_sq(p: Particle) -> float64 {
+        return p.vx * p.vx + p.vy * p.vy;
+    }
+
+    fn kill_particle(p: Particle) -> Particle {
+        return Particle {
+            px: p.px, py: p.py,
+            vx: p.vx, vy: p.vy,
+            mass: p.mass,
+            alive: false,
+        };
+    }
+
+    fn spring_force(s: Spring, disp: float64, vel: float64) -> float64 {
+        let elastic: float64 = 0.0 - s.stiffness * disp;
+        let damp: float64 = 0.0 - s.damping * vel;
+        return elastic + damp;
+    }
+}
+
+// ============================================================
+// NAMESPACE: Matrix
+// ============================================================
+namespace Matrix {
+
+    struct Mat2 {
+        a00: float64;
+        a01: float64;
+        a10: float64;
+        a11: float64;
+    }
+
+    fn identity() -> Mat2 {
+        return Mat2 { a00: 1.0, a01: 0.0, a10: 0.0, a11: 1.0 };
+    }
+
+    fn zero() -> Mat2 {
+        return Mat2 { a00: 0.0, a01: 0.0, a10: 0.0, a11: 0.0 };
+    }
+
+    fn add(m: Mat2, n: Mat2) -> Mat2 {
+        return Mat2 {
+            a00: m.a00 + n.a00,
+            a01: m.a01 + n.a01,
+            a10: m.a10 + n.a10,
+            a11: m.a11 + n.a11,
+        };
+    }
+
+    fn mul(m: Mat2, n: Mat2) -> Mat2 {
+        return Mat2 {
+            a00: m.a00 * n.a00 + m.a01 * n.a10,
+            a01: m.a00 * n.a01 + m.a01 * n.a11,
+            a10: m.a10 * n.a00 + m.a11 * n.a10,
+            a11: m.a10 * n.a01 + m.a11 * n.a11,
+        };
+    }
+
+    fn det(m: Mat2) -> float64 {
+        return m.a00 * m.a11 - m.a01 * m.a10;
+    }
+
+    fn trace(m: Mat2) -> float64 {
+        return m.a00 + m.a11;
+    }
+
+    fn transpose(m: Mat2) -> Mat2 {
+        return Mat2 { a00: m.a00, a01: m.a10, a10: m.a01, a11: m.a11 };
+    }
+
+    fn scale_mat(m: Mat2, s: float64) -> Mat2 {
+        return Mat2 {
+            a00: m.a00 * s,
+            a01: m.a01 * s,
+            a10: m.a10 * s,
+            a11: m.a11 * s,
+        };
+    }
+
+    fn frobenius_sq(m: Mat2) -> float64 {
+        return m.a00 * m.a00 + m.a01 * m.a01
+             + m.a10 * m.a10 + m.a11 * m.a11;
+    }
+
+    fn is_symmetric(m: Mat2) -> bool {
+        return m.a01 == m.a10;
+    }
+
+    fn is_diagonal(m: Mat2) -> bool {
+        return (m.a01 == 0.0) && (m.a10 == 0.0);
+    }
+}
+
+// ============================================================
+// NAMESPACE: ColorLib
+// ============================================================
+namespace ColorLib {
+
+    struct RGB {
+        r: uint8;
+        g: uint8;
+        b: uint8;
+    }
+
+    struct RGBA {
+        r: uint8;
+        g: uint8;
+        b: uint8;
+        a: uint8;
+    }
+
+    fn make_rgb(r: uint8, g: uint8, b: uint8) -> RGB {
+        return RGB { r: r, g: g, b: b };
+    }
+
+    fn make_rgba(r: uint8, g: uint8, b: uint8, a: uint8) -> RGBA {
+        return RGBA { r: r, g: g, b: b, a: a };
+    }
+
+    fn to_rgba(c: RGB, alpha: uint8) -> RGBA {
+        return RGBA { r: c.r, g: c.g, b: c.b, a: alpha };
+    }
+
+    fn to_rgb(c: RGBA) -> RGB {
+        return RGB { r: c.r, g: c.g, b: c.b };
+    }
+
+    fn brightness(c: RGB) -> uint8 {
+        let s: uint16 = cast<uint16>(c.r) + cast<uint16>(c.g) + cast<uint16>(c.b);
+        return cast<uint8>(s / 3u16);
+    }
+
+    fn invert(c: RGB) -> RGB {
+        return RGB {
+            r: cast<uint8>(255u16 - cast<uint16>(c.r)),
+            g: cast<uint8>(255u16 - cast<uint16>(c.g)),
+            b: cast<uint8>(255u16 - cast<uint16>(c.b)),
+        };
+    }
+
+    fn rgb_equals(a: RGB, b: RGB) -> bool {
+        return (a.r == b.r) && (a.g == b.g) && (a.b == b.b);
+    }
+
+    fn is_opaque(c: RGBA) -> bool {
+        return c.a == 255u8;
+    }
+
+    fn blend_channel(a: uint8, b: uint8) -> uint8 {
+        return cast<uint8>((cast<uint16>(a) + cast<uint16>(b)) / 2u16);
+    }
+}
+
+// ============================================================
+// NAMESPACE: StringUtils
+// ============================================================
+namespace StringUtils {
+
+    fn make_header(title: string) -> string {
+        return "=== " + title + " ===";
+    }
+
+    fn repeat(s: string) -> string {
+        return s + s;
+    }
+
+    fn wrap(s: string, open: string, close: string) -> string {
+        return open + s + close;
+    }
+
+    fn greet(name: string) -> string {
+        return "Hello, " + name + "!";
+    }
+}
+
+// ============================================================
+// Top-level structs with impl blocks
+// ============================================================
+
+struct Config {
+    max_iters: int32;
+    tolerance: float64;
+    verbose: bool;
+    tag: string;
+}
+
+impl Config {
+    fn is_verbose(self: Config) -> bool {
+        return self.verbose;
+    }
+
+    fn describe(self: Config) -> string {
+        return "Config[" + self.tag + "]";
+    }
+
+    fn with_tag(self: Config, new_tag: string) -> Config {
+        return Config {
+            max_iters: self.max_iters,
+            tolerance: self.tolerance,
+            verbose: self.verbose,
+            tag: new_tag,
+        };
+    }
+}
+
+struct Counter {
+    value: int64;
+    step: int64;
+    label: string;
+}
+
+impl Counter {
+    fn increment(self: Counter) -> Counter {
+        return Counter {
+            value: self.value + self.step,
+            step: self.step,
+            label: self.label,
+        };
+    }
+
+    fn reset(self: Counter) -> Counter {
+        return Counter { value: 0i64, step: self.step, label: self.label };
+    }
+
+    fn at(self: Counter, n: int64) -> Counter {
+        return Counter { value: n, step: self.step, label: self.label };
+    }
+
+    fn is_positive(self: Counter) -> bool {
+        return self.value > 0i64;
+    }
+}
+
+struct BoundedRange {
+    lo: int32;
+    hi: int32;
+    current: int32;
+}
+
+impl BoundedRange {
+    fn next(self: BoundedRange) -> BoundedRange {
+        mut c: int32 = self.current + 1;
+        if c > self.hi {
+            c = self.lo;
+        }
+        return BoundedRange { lo: self.lo, hi: self.hi, current: c };
+    }
+
+    fn in_range(self: BoundedRange, v: int32) -> bool {
+        return (v >= self.lo) && (v <= self.hi);
+    }
+
+    fn span(self: BoundedRange) -> int32 {
+        return self.hi - self.lo;
+    }
+}
+
+// ============================================================
+// Top-level utility functions
+// ============================================================
+
+fn abs_i32(v: int32) -> int32 {
+    if v < 0 {
+        return 0 - v;
+    }
+    return v;
+}
+
+fn abs_f64(v: float64) -> float64 {
+    if v < 0.0 {
+        return 0.0 - v;
+    }
+    return v;
+}
+
+fn clamp_i32(v: int32, lo: int32, hi: int32) -> int32 {
+    if v < lo {
+        return lo;
+    }
+    if v > hi {
+        return hi;
+    }
+    return v;
+}
+
+fn clamp_f64(v: float64, lo: float64, hi: float64) -> float64 {
+    if v < lo {
+        return lo;
+    }
+    if v > hi {
+        return hi;
+    }
+    return v;
+}
+
+fn sign_i32(v: int32) -> int32 {
+    if v < 0 {
+        return 0 - 1;
+    }
+    if v > 0 {
+        return 1;
+    }
+    return 0;
+}
+
+fn is_even(n: int32) -> bool {
+    return n % 2 == 0;
+}
+
+fn is_odd(n: int32) -> bool {
+    return n % 2 != 0;
+}
+
+fn factorial(n: int32) -> int64 {
+    mut result: int64 = 1i64;
+    mut i: int32 = 2;
+    while i <= n {
+        result = result * cast<int64>(i);
+        i = i + 1;
+    }
+    return result;
+}
+
+fn fibonacci(n: int32) -> int64 {
+    if n <= 0 {
+        return 0i64;
+    }
+    if n == 1 {
+        return 1i64;
+    }
+    mut a: int64 = 0i64;
+    mut b: int64 = 1i64;
+    mut i: int32 = 2;
+    while i <= n {
+        let tmp: int64 = a + b;
+        a = b;
+        b = tmp;
+        i = i + 1;
+    }
+    return b;
+}
+
+fn gcd(a: int32, b: int32) -> int32 {
+    mut x: int32 = a;
+    mut y: int32 = b;
+    while y != 0 {
+        let tmp: int32 = y;
+        y = x % y;
+        x = tmp;
+    }
+    return x;
+}
+
+fn lcm(a: int32, b: int32) -> int32 {
+    let g: int32 = gcd(a, b);
+    return (a / g) * b;
+}
+
+fn is_prime(n: int32) -> bool {
+    if n < 2 {
+        return false;
+    }
+    if n == 2 {
+        return true;
+    }
+    if n % 2 == 0 {
+        return false;
+    }
+    mut d: int32 = 3;
+    while d * d <= n {
+        if n % d == 0 {
+            return false;
+        }
+        d = d + 2;
+    }
+    return true;
+}
+
+fn power_i32(base: int32, exp: int32) -> int32 {
+    mut result: int32 = 1;
+    mut e: int32 = exp;
+    while e > 0 {
+        result = result * base;
+        e = e - 1;
+    }
+    return result;
+}
+
+fn count_digits(n: int32) -> int32 {
+    if n == 0 {
+        return 1;
+    }
+    mut v: int32 = abs_i32(n);
+    mut cnt: int32 = 0;
+    while v > 0 {
+        v = v / 10;
+        cnt = cnt + 1;
+    }
+    return cnt;
+}
+
+fn sum_digits(n: int32) -> int32 {
+    mut v: int32 = abs_i32(n);
+    mut s: int32 = 0;
+    while v > 0 {
+        s = s + v % 10;
+        v = v / 10;
+    }
+    return s;
+}
+
+fn sum_array(arr: [8]int32) -> int32 {
+    mut total: int32 = 0;
+    mut i: int32 = 0;
+    while i < 8 {
+        total = total + arr[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+fn find_first(arr: [8]int32, val: int32) -> int32 {
+    mut i: int32 = 0;
+    while i < 8 {
+        if arr[i] == val {
+            return i;
+        }
+        i = i + 1;
+    }
+    return 0 - 1;
+}
+
+fn reverse_arr(arr: [8]int32) -> [8]int32 {
+    mut r: [8]int32 = arr;
+    let t0: int32 = r[0]; r[0] = r[7]; r[7] = t0;
+    let t1: int32 = r[1]; r[1] = r[6]; r[6] = t1;
+    let t2: int32 = r[2]; r[2] = r[5]; r[5] = t2;
+    let t3: int32 = r[3]; r[3] = r[4]; r[4] = t3;
+    return r;
+}
+
+fn bubble_sort_pass(arr: [8]int32) -> [8]int32 {
+    mut a: [8]int32 = arr;
+    mut i: int32 = 0;
+    while i < 7 {
+        if a[i] > a[i + 1] {
+            let tmp: int32 = a[i];
+            a[i] = a[i + 1];
+            a[i + 1] = tmp;
+        }
+        i = i + 1;
+    }
+    return a;
+}
+
+fn max_of_three(a: int32, b: int32, c: int32) -> int32 {
+    mut best: int32 = a;
+    if b > best {
+        best = b;
+    }
+    if c > best {
+        best = c;
+    }
+    return best;
+}
+
+fn min_of_three(a: int32, b: int32, c: int32) -> int32 {
+    mut best: int32 = a;
+    if b < best {
+        best = b;
+    }
+    if c < best {
+        best = c;
+    }
+    return best;
+}
+
+// ============================================================
+// Demo functions — each exercises a specific feature area
+// ============================================================
+
+fn demo_arithmetic() -> void {
+    print(StringUtils::make_header("Arithmetic"));
+
+    let a: int32 = 100;
+    let b: int32 = 37;
+    print(a + b);
+    print(a - b);
+    print(a * b);
+    print(a / b);
+    print(a % b);
+
+    let fa: float64 = 3.14159265;
+    let fb: float64 = 2.71828182;
+    print(fa + fb);
+    print(fa - fb);
+    print(fa * fb);
+    print(fa / fb);
+
+    // Unary operators
+    let neg: int32 = 0 - a;
+    let not_f: bool = !false;
+    let not_t: bool = !true;
+    print(neg);
+    print(not_f);
+    print(not_t);
+
+    // All comparison operators
+    print(a == b);
+    print(a != b);
+    print(a < b);
+    print(a > b);
+    print(a <= b);
+    print(a >= b);
+
+    // Casts between numeric types
+    let as_f64: float64 = cast<float64>(a);
+    let as_i32: int32   = cast<int32>(fa);
+    let as_i64: int64   = cast<int64>(fa);
+    let as_f32: float32 = cast<float32>(fa);
+    let as_bool: bool   = cast<bool>(a);
+    let b_to_i: int32   = cast<int32>(true);
+    let zero_b: bool    = cast<bool>(0);
+    print(as_f64);
+    print(as_i32);
+    print(as_i64);
+    print(as_f32);
+    print(as_bool);
+    print(b_to_i);
+    print(zero_b);
+}
+
+fn demo_all_integer_types() -> void {
+    print(StringUtils::make_header("Integer Types"));
+
+    let a: int8    = 100i8;
+    let b: int8    = 27i8;
+    let c8: int8   = a + b;
+    print(a);
+    print(b);
+    print(c8);
+
+    let a16: int16  = 30000i16;
+    let b16: int16  = 2000i16;
+    let c16: int16  = a16 - b16;
+    print(a16);
+    print(c16);
+
+    let a32: int32  = 2000000i32;
+    let a64: int64  = 5000000000i64;
+    let ua8: uint8  = 200u8;
+    let ua16: uint16 = 60000u16;
+    let ua32: uint32 = 3000000000u32;
+    let ua64: uint64 = 10000000000u64;
+    let f32v: float32 = 1.5f32;
+    let f64v: float64 = 2.718281828f64;
+
+    print(a32);
+    print(a64);
+    print(ua8);
+    print(ua16);
+    print(ua32);
+    print(ua64);
+    print(f32v);
+    print(f64v);
+
+    // Cross-type casts
+    let x: int64    = cast<int64>(a32);
+    let y: float64  = cast<float64>(a32);
+    let z: int32    = cast<int32>(a64);
+    let w: float32  = cast<float32>(f64v);
+    let u: uint32   = cast<uint32>(ua16);
+    let s: int8     = cast<int8>(a);
+    print(x);
+    print(y);
+    print(z);
+    print(w);
+    print(u);
+    print(s);
+}
+
+fn demo_strings() -> void {
+    print(StringUtils::make_header("Strings"));
+
+    let s1: string = "Hello";
+    let s2: string = ", ";
+    let s3: string = "World!";
+    let full: string = s1 + s2 + s3;
+    print(full);
+    print(len(full));
+
+    // Escape sequences
+    let escaped: string = "tab:\there\nnewline\\backslash\"quotes\"";
+    print(escaped);
+    print(len(escaped));
+
+    // String comparison
+    let alpha: string = "alpha";
+    let beta: string  = "beta";
+    if alpha == beta {
+        print("equal");
+    } else {
+        print("not equal");
+    }
+    if alpha != beta {
+        print("strings differ");
+    }
+
+    // Build string in loop
+    mut acc: string = "";
+    mut i: int32 = 0;
+    while i < 6 {
+        acc = acc + "x";
+        i = i + 1;
+    }
+    print(acc);
+    print(len(acc));
+
+    // Empty string edge cases
+    let empty: string = "";
+    print(len(empty));
+    let padded: string = "" + "a" + "" + "b" + "";
+    print(padded);
+
+    // StringUtils functions
+    print(StringUtils::greet("Bina"));
+    print(StringUtils::repeat("ab"));
+    print(StringUtils::wrap("hello", "(", ")"));
+
+    // Concat many fragments
+    let msg: string = "a" + "b" + "c" + "d" + "e" + "f" + "g" + "h";
+    print(msg);
+    print(len(msg));
+}
+
+fn demo_booleans() -> void {
+    print(StringUtils::make_header("Booleans"));
+
+    let t: bool = true;
+    let f: bool = false;
+
+    print(t && f);
+    print(t || f);
+    print(!t);
+    print(!f);
+    print(t && t);
+    print(f || f);
+    print(t || t);
+    print(f && f);
+
+    // Short-circuit in conditions
+    let a: int32 = 5;
+    let b: int32 = 10;
+    let c: int32 = 15;
+    if (a < b) && (b < c) {
+        print("ascending");
+    }
+    if (a > b) || (b < c) {
+        print("at least one");
+    }
+    if !(a == b) {
+        print("not equal");
+    }
+    if !f && t {
+        print("not f and t");
+    }
+
+    // Complex nested boolean
+    let p: bool = true;
+    let q: bool = false;
+    let r: bool = true;
+    if (p || q) && r {
+        print("complex true");
+    }
+    if !(p && q) {
+        print("not both");
+    }
+    if !q && (p || r) {
+        print("not q and p or r");
+    }
+
+    // Bool as int cast
+    let bt: int32 = cast<int32>(t);
+    let bf: int32 = cast<int32>(f);
+    print(bt);
+    print(bf);
+}
+
+fn demo_arrays() -> void {
+    print(StringUtils::make_header("Arrays"));
+
+    let ints: [8]int32    = [10, 20, 30, 40, 50, 60, 70, 80];
+    let floats: [6]float64 = [1.1, 2.2, 3.3, 4.4, 5.5, 6.6];
+    let flags: [4]bool    = [true, false, true, false];
+    let words: [3]string  = ["one", "two", "three"];
+
+    print(ints[0]);
+    print(ints[7]);
+    print(floats[0]);
+    print(floats[5]);
+    print(flags[0]);
+    print(flags[1]);
+    print(words[0]);
+    print(words[2]);
+
+    // len of arrays
+    print(len(ints));
+    print(len(floats));
+
+    // Mutable array updates
+    mut arr: [8]int32 = [5, 3, 8, 1, 9, 2, 7, 4];
+    arr[0] = 100;
+    arr[7] = 200;
+    print(arr[0]);
+    print(arr[7]);
+
+    // Index with expression
+    mut i: int32 = 0;
+    mut total: int32 = 0;
+    while i < 8 {
+        total = total + ints[i];
+        i = i + 1;
+    }
+    print(total);
+
+    // Stats functions
+    print(Stats::sum_i32(arr));
+    print(Stats::max_i32(arr));
+    print(Stats::min_i32(arr));
+    print(Stats::count_positive(arr));
+    print(Stats::count_negative(arr));
+    print(Stats::sum_f64(floats));
+    print(Stats::average_f64(floats));
+
+    // Reverse and find
+    let rev: [8]int32 = reverse_arr(arr);
+    print(rev[0]);
+    print(rev[7]);
+    print(find_first(arr, 100));
+    print(find_first(arr, 999));
+
+    // Copy semantics (value copy of array)
+    let copy: [8]int32 = arr;
+    print(copy[0]);
+}
+
+fn demo_control_flow() -> void {
+    print(StringUtils::make_header("Control Flow"));
+
+    // if / else if / else chain
+    mut x: int32 = 42;
+    if x < 0 {
+        print("negative");
+    } else if x == 0 {
+        print("zero");
+    } else if x < 10 {
+        print("small");
+    } else if x < 100 {
+        print("medium");
+    } else {
+        print("large");
+    }
+
+    // while + break
+    mut i: int32 = 0;
+    while i < 100 {
+        if i == 10 {
+            break;
+        }
+        i = i + 1;
+    }
+    print(i);
+
+    // while + continue (sum odd numbers up to 20)
+    mut sum_odd: int32 = 0;
+    mut j: int32 = 0;
+    while j < 20 {
+        j = j + 1;
+        if is_even(j) {
+            continue;
+        }
+        sum_odd = sum_odd + j;
+    }
+    print(sum_odd);
+
+    // nested while loops
+    mut outer: int32 = 0;
+    mut inner_total: int32 = 0;
+    while outer < 5 {
+        mut inner: int32 = 0;
+        while inner < 5 {
+            inner_total = inner_total + 1;
+            inner = inner + 1;
+        }
+        outer = outer + 1;
+    }
+    print(inner_total);
+
+    // while with complex condition
+    mut n: int32 = 1;
+    while (n < 1000) && !is_prime(n) {
+        n = n + 1;
+    }
+    print(n);
+
+    // Shadowing
+    let val: int32 = 10;
+    if true {
+        let val: int32 = 20;
+        print(val);
+    }
+    print(val);
+
+    // Null statement
+    ;
+
+    // Nested if / max of three
+    let a: int32 = 7;
+    let b: int32 = 3;
+    let c: int32 = 11;
+    if a > b {
+        if a > c {
+            print("a max");
+        } else {
+            print("c max");
+        }
+    } else {
+        if b > c {
+            print("b max");
+        } else {
+            print("c max");
+        }
+    }
+    print(max_of_three(a, b, c));
+    print(min_of_three(a, b, c));
+
+    // while with break in nested if
+    mut k: int32 = 0;
+    mut found: bool = false;
+    while k < 50 {
+        if k % 7 == 0 {
+            if k > 0 {
+                found = true;
+                break;
+            }
+        }
+        k = k + 1;
+    }
+    print(k);
+    print(found);
+}
+
+fn demo_math() -> void {
+    print(StringUtils::make_header("Math Functions"));
+
+    // abs
+    print(abs_i32(42));
+    print(abs_i32(0 - 42));
+    print(abs_f64(3.14));
+    print(abs_f64(0.0 - 3.14));
+
+    // clamp
+    print(clamp_i32(5, 0, 10));
+    print(clamp_i32(0 - 5, 0, 10));
+    print(clamp_i32(15, 0, 10));
+    print(clamp_f64(5.0, 0.0, 10.0));
+    print(clamp_f64(0.0 - 5.0, 0.0, 10.0));
+
+    // sign
+    print(sign_i32(5));
+    print(sign_i32(0 - 5));
+    print(sign_i32(0));
+
+    // even/odd
+    print(is_even(4));
+    print(is_odd(4));
+    print(is_even(7));
+    print(is_odd(7));
+
+    // factorial
+    print(factorial(0));
+    print(factorial(1));
+    print(factorial(5));
+    print(factorial(10));
+
+    // fibonacci
+    print(fibonacci(0));
+    print(fibonacci(1));
+    print(fibonacci(10));
+    print(fibonacci(20));
+
+    // gcd / lcm
+    print(gcd(12, 8));
+    print(gcd(100, 75));
+    print(lcm(4, 6));
+    print(lcm(7, 3));
+
+    // prime
+    print(is_prime(2));
+    print(is_prime(3));
+    print(is_prime(4));
+    print(is_prime(17));
+    print(is_prime(18));
+
+    // digits
+    print(count_digits(0));
+    print(count_digits(12345));
+    print(sum_digits(12345));
+    print(sum_digits(999));
+
+    // power
+    print(power_i32(2, 10));
+    print(power_i32(3, 5));
+
+    // Chained calls
+    print(abs_i32(sign_i32(0 - 15)));
+    print(clamp_i32(abs_i32(0 - 25), 5, 20));
+    print(power_i32(gcd(12, 8), 3));
+}
+
+fn demo_geometry() -> void {
+    print(StringUtils::make_header("Geometry"));
+
+    let p1: Geometry::Vec2 = Geometry::Vec2 { x: 3.0, y: 4.0 };
+    let p2: Geometry::Vec2 = Geometry::Vec2 { x: 1.0, y: 2.0 };
+    let origin: Geometry::Vec2 = Geometry::Vec2 { x: 0.0, y: 0.0 };
+
+    print(Geometry::distance_sq2(p1, origin));
+    print(Geometry::length_sq2(p1));
+    print(Geometry::dot2(p1, p2));
+
+    let p3: Geometry::Vec2 = Geometry::add2(p1, p2);
+    print(p3.x);
+    print(p3.y);
+
+    let p4: Geometry::Vec2 = Geometry::sub2(p1, p2);
+    print(p4.x);
+    print(p4.y);
+
+    let p5: Geometry::Vec2 = Geometry::scale2(p1, 2.0);
+    print(p5.x);
+    print(p5.y);
+
+    let p6: Geometry::Vec2 = Geometry::negate2(p1);
+    print(p6.x);
+    print(p6.y);
+
+    let mid: Geometry::Vec2 = Geometry::midpoint2(p1, p2);
+    print(mid.x);
+    print(mid.y);
+
+    // 3D vectors
+    let q1: Geometry::Vec3 = Geometry::Vec3 { x: 1.0, y: 2.0, z: 3.0 };
+    let q2: Geometry::Vec3 = Geometry::Vec3 { x: 4.0, y: 5.0, z: 6.0 };
+    print(Geometry::distance_sq3(q1, q2));
+    print(Geometry::dot3(q1, q2));
+    print(Geometry::length_sq3(q1));
+
+    let q3: Geometry::Vec3 = Geometry::add3(q1, q2);
+    print(q3.x);
+    print(q3.y);
+    print(q3.z);
+
+    let q4: Geometry::Vec3 = Geometry::scale3(q1, 3.0);
+    print(q4.x);
+
+    // AABB
+    let box: Geometry::AABB = Geometry::AABB {
+        min_x: 0.0, min_y: 0.0,
+        max_x: 10.0, max_y: 10.0,
+    };
+    let inside: Geometry::Vec2 = Geometry::Vec2 { x: 5.0, y: 5.0 };
+    let outside: Geometry::Vec2 = Geometry::Vec2 { x: 15.0, y: 5.0 };
+    let on_edge: Geometry::Vec2 = Geometry::Vec2 { x: 0.0, y: 10.0 };
+    print(Geometry::aabb_contains(box, inside));
+    print(Geometry::aabb_contains(box, outside));
+    print(Geometry::aabb_contains(box, on_edge));
+    print(Geometry::aabb_area(box));
+
+    // Segment
+    let seg: Geometry::Segment = Geometry::Segment {
+        ax: 0.0, ay: 0.0,
+        bx: 3.0, by: 4.0,
+    };
+    print(Geometry::segment_length_sq(seg));
+
+    // make helpers
+    let pv: Geometry::Vec2 = Geometry::make_vec2(7.0, 8.0);
+    print(pv.x);
+    let qv: Geometry::Vec3 = Geometry::make_vec3(1.0, 2.0, 3.0);
+    print(qv.z);
+}
+
+fn demo_physics() -> void {
+    print(StringUtils::make_header("Physics"));
+
+    mut p: Physics::Particle = Physics::make_particle(0.0, 10.0, 2.0);
+    print(p.px);
+    print(p.py);
+    print(p.mass);
+    print(p.alive);
+
+    // Simulate 10 steps with gravity
+    let dt: float64 = 0.1;
+    let gx: float64 = 0.0;
+    let gy: float64 = 0.0 - 9.8;
+    mut step: int32 = 0;
+    while step < 10 {
+        p = Physics::step_particle(p, dt, gx, gy);
+        step = step + 1;
+    }
+    print(p.py);
+    print(p.vy);
+    print(Physics::kinetic_energy(p));
+    print(Physics::speed_sq(p));
+
+    if p.alive {
+        print("alive");
+    } else {
+        print("dead");
+    }
+
+    let dead: Physics::Particle = Physics::kill_particle(p);
+    if dead.alive {
+        print("error: should be dead");
+    } else {
+        print("killed ok");
+    }
+
+    // Spring forces
+    let s: Physics::Spring = Physics::Spring {
+        rest_len: 1.0,
+        stiffness: 10.0,
+        damping: 0.5,
+    };
+    print(Physics::spring_force(s, 0.5, 0.1));
+    print(Physics::spring_force(s, 0.0, 0.0));
+    print(Physics::spring_force(s, 0.0 - 0.5, 0.0 - 0.1));
+
+    // Physics type aliases
+    let m: Physics::Mass  = 1.5;
+    let v: Physics::Speed = 3.0;
+    print(m * v);
+}
+
+fn demo_matrix() -> void {
+    print(StringUtils::make_header("Matrix"));
+
+    let id: Matrix::Mat2 = Matrix::identity();
+    print(id.a00);
+    print(id.a11);
+    print(Matrix::det(id));
+    print(Matrix::trace(id));
+    print(Matrix::frobenius_sq(id));
+    print(Matrix::is_symmetric(id));
+    print(Matrix::is_diagonal(id));
+
+    let z: Matrix::Mat2 = Matrix::zero();
+    print(Matrix::det(z));
+
+    let m: Matrix::Mat2 = Matrix::Mat2 {
+        a00: 2.0, a01: 1.0,
+        a10: 1.0, a11: 3.0,
+    };
+    print(Matrix::det(m));
+    print(Matrix::trace(m));
+    print(Matrix::is_symmetric(m));
+    print(Matrix::is_diagonal(m));
+
+    let sum: Matrix::Mat2 = Matrix::add(id, m);
+    print(sum.a00);
+    print(sum.a11);
+
+    let prod: Matrix::Mat2 = Matrix::mul(m, id);
+    print(prod.a00);
+    print(prod.a11);
+
+    let tr: Matrix::Mat2 = Matrix::transpose(m);
+    print(tr.a01);
+    print(tr.a10);
+
+    let scaled: Matrix::Mat2 = Matrix::scale_mat(m, 2.0);
+    print(scaled.a00);
+    print(scaled.a11);
+
+    let frob: float64 = Matrix::frobenius_sq(m);
+    print(frob);
+}
+
+fn demo_colors() -> void {
+    print(StringUtils::make_header("Colors"));
+
+    let red: ColorLib::RGB   = ColorLib::make_rgb(255u8, 0u8, 0u8);
+    let green: ColorLib::RGB = ColorLib::make_rgb(0u8, 255u8, 0u8);
+    let blue: ColorLib::RGB  = ColorLib::make_rgb(0u8, 0u8, 255u8);
+    let white: ColorLib::RGB = ColorLib::make_rgb(255u8, 255u8, 255u8);
+    let black: ColorLib::RGB = ColorLib::make_rgb(0u8, 0u8, 0u8);
+
+    print(red.r);
+    print(green.g);
+    print(blue.b);
+    print(ColorLib::brightness(white));
+    print(ColorLib::brightness(black));
+
+    let inv_red: ColorLib::RGB = ColorLib::invert(red);
+    print(inv_red.r);
+    print(inv_red.g);
+    print(inv_red.b);
+
+    print(ColorLib::rgb_equals(red, red));
+    print(ColorLib::rgb_equals(red, green));
+
+    let rgba_red: ColorLib::RGBA = ColorLib::to_rgba(red, 255u8);
+    print(rgba_red.a);
+    print(ColorLib::is_opaque(rgba_red));
+
+    let semi: ColorLib::RGBA = ColorLib::make_rgba(128u8, 64u8, 32u8, 128u8);
+    print(semi.r);
+    print(ColorLib::is_opaque(semi));
+
+    let back: ColorLib::RGB = ColorLib::to_rgb(rgba_red);
+    print(back.r);
+
+    let blended_r: uint8 = ColorLib::blend_channel(100u8, 200u8);
+    print(blended_r);
+}
+
+fn demo_structs_and_impl() -> void {
+    print(StringUtils::make_header("Structs and Impl"));
+
+    // Config struct
+    let cfg: Config = Config {
+        max_iters: 1000,
+        tolerance: 0.0001,
+        verbose: true,
+        tag: "main-run",
+    };
+    print(cfg.max_iters);
+    print(cfg.tolerance);
+    print(cfg.verbose);
+    print(cfg.tag);
+    print(Config::is_verbose(cfg));
+    print(Config::describe(cfg));
+
+    let cfg2: Config = Config::with_tag(cfg, "renamed");
+    print(cfg2.tag);
+
+    mut cfg3: Config = Config {
+        max_iters: 500,
+        tolerance: 0.001,
+        verbose: false,
+        tag: "quick",
+    };
+    cfg3.verbose = true;
+    cfg3.max_iters = 250;
+    print(cfg3.max_iters);
+    print(Config::is_verbose(cfg3));
+
+    // Counter struct
+    let c0: Counter = Counter { value: 0i64, step: 5i64, label: "hits" };
+    let c1: Counter = Counter::increment(c0);
+    let c2: Counter = Counter::increment(c1);
+    let c3: Counter = Counter::reset(c2);
+    print(c0.value);
+    print(c1.value);
+    print(c2.value);
+    print(c3.value);
+    print(c3.label);
+    print(Counter::is_positive(c1));
+    print(Counter::is_positive(c3));
+
+    mut mc: Counter = Counter { value: 10i64, step: 3i64, label: "events" };
+    mc = Counter::increment(mc);
+    mc = Counter::increment(mc);
+    print(mc.value);
+    mc = Counter::reset(mc);
+    print(mc.value);
+    mc = Counter::at(mc, 42i64);
+    print(mc.value);
+
+    // BoundedRange struct
+    let br: BoundedRange = BoundedRange { lo: 0, hi: 4, current: 0 };
+    let br1: BoundedRange = BoundedRange::next(br);
+    let br2: BoundedRange = BoundedRange::next(br1);
+    print(br1.current);
+    print(br2.current);
+    print(BoundedRange::in_range(br, 3));
+    print(BoundedRange::in_range(br, 10));
+    print(BoundedRange::span(br));
+}
+
+fn demo_type_aliases() -> void {
+    print(StringUtils::make_header("Type Aliases"));
+
+    let s: Scalar = 3.14;
+    let idx: Index = 42;
+    let cnt: Count = 1000i64;
+    let flag: Flag = true;
+    let lbl: Label = "my-label";
+    print(s);
+    print(idx);
+    print(cnt);
+    print(flag);
+    print(lbl);
+
+    // Use aliases in expressions
+    let s2: Scalar = s * 2.0;
+    let idx2: Index = idx + 1;
+    let cnt2: Count = cnt + 1i64;
+    print(s2);
+    print(idx2);
+    print(cnt2);
+
+    // Physics namespace aliases
+    let m: Physics::Mass  = 9.81;
+    let v: Physics::Speed = 2.5;
+    print(m);
+    print(v);
+    print(m * v);
+}
+
+fn demo_sorting() -> void {
+    print(StringUtils::make_header("Sorting"));
+
+    mut arr: [8]int32 = [64, 25, 12, 22, 11, 8, 90, 45];
+
+    // 8 passes of bubble sort (fully sorts 8 elements)
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+    arr = bubble_sort_pass(arr);
+
+    mut i: int32 = 0;
+    while i < 8 {
+        print(arr[i]);
+        i = i + 1;
+    }
+
+    // Search
+    print(find_first(arr, 25));
+    print(find_first(arr, 999));
+
+    // sum_array
+    print(sum_array(arr));
+}
+
+fn demo_edge_cases() -> void {
+    print(StringUtils::make_header("Edge Cases"));
+
+    // Empty loop with immediate break
+    mut i: int32 = 0;
+    while true {
+        if i >= 5 {
+            break;
+        }
+        i = i + 1;
+    }
+    print(i);
+
+    // continue skips multiples of 3
+    mut count: int32 = 0;
+    mut j: int32 = 0;
+    while j < 12 {
+        j = j + 1;
+        if j % 3 == 0 {
+            continue;
+        }
+        count = count + 1;
+    }
+    print(count);
+
+    // Multiple assignments to same variable
+    mut x: int32 = 1;
+    x = x + 1;
+    x = x * 3;
+    x = x - 2;
+    print(x);
+
+    // Complex nested boolean expressions
+    let a: bool = true;
+    let b: bool = false;
+    let c: bool = true;
+    if (a || b) && (c || b) {
+        print("complex and");
+    }
+    if !(a && b) || c {
+        print("not and or c");
+    }
+    if !b && !b && a {
+        print("triple bool");
+    }
+
+    // Float edge values
+    let zero_f: float64 = 0.0;
+    let one_f: float64  = 1.0;
+    let neg_f: float64  = 0.0 - 1.0;
+    let small_f: float64 = 0.000001;
+    let large_f: float64 = 999999.99;
+    print(zero_f);
+    print(one_f);
+    print(neg_f);
+    print(small_f);
+    print(large_f);
+    print(abs_f64(neg_f));
+
+    // Array element assignments via expressions
+    mut arr: [8]int32 = [0, 0, 0, 0, 0, 0, 0, 0];
+    mut k: int32 = 0;
+    while k < 8 {
+        arr[k] = k * k;
+        k = k + 1;
+    }
+    print(arr[0]);
+    print(arr[3]);
+    print(arr[7]);
+
+    // Deeply nested function calls
+    print(abs_i32(sign_i32(0 - 15)));
+    print(clamp_i32(abs_i32(0 - 20), 5, 15));
+    print(power_i32(gcd(12, 8), 3));
+    print(max_of_three(abs_i32(0 - 3), gcd(10, 4), sign_i32(100)));
+
+    // String edge cases
+    let a_s: string = "";
+    print(len(a_s));
+    let b_s: string = a_s + "hello";
+    print(b_s);
+    let c_s: string = b_s + " " + "world";
+    print(len(c_s));
+
+    // Large literal values
+    let big_i64: int64 = 1000000000000i64;
+    let big_u64: uint64 = 9999999999u64;
+    let tiny_f32: float32 = 0.0001f32;
+    let big_f64: float64  = 123.456789;
+    print(big_i64);
+    print(big_u64);
+    print(tiny_f32);
+    print(big_f64);
+
+    // Literal suffixes comprehensive
+    let li8:  int8   = 42i8;
+    let li16: int16  = 1000i16;
+    let li32: int32  = 100000i32;
+    let li64: int64  = 10000000i64;
+    let lu8:  uint8  = 200u8;
+    let lu16: uint16 = 50000u16;
+    let lu32: uint32 = 2000000u32;
+    let lu64: uint64 = 5000000u64;
+    let lf32: float32 = 3.14f32;
+    let lf64: float64 = 2.718f64;
+    print(li8);
+    print(li16);
+    print(li32);
+    print(li64);
+    print(lu8);
+    print(lu16);
+    print(lu32);
+    print(lu64);
+    print(lf32);
+    print(lf64);
+}
+
+// ============================================================
+// main
+// ============================================================
+fn main() -> int {
+    print("=== Bina Comprehensive Parser Stress Test ===");
+
+    demo_arithmetic();
+    demo_all_integer_types();
+    demo_strings();
+    demo_booleans();
+    demo_arrays();
+    demo_control_flow();
+    demo_math();
+    demo_geometry();
+    demo_physics();
+    demo_matrix();
+    demo_colors();
+    demo_structs_and_impl();
+    demo_type_aliases();
+    demo_sorting();
+    demo_edge_cases();
+
+    print("=== All demos completed ===");
+    return 0;
+}
