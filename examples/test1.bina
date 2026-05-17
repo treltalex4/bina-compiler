@@ -5,7 +5,7 @@ fn add(a: int32, b: int32) -> int32 {
 
 fn main() -> void {
     let x: int32 = 10;
-    let mut y: int32 = 20;
+    mut y: int32 = 20;
     y = add(x, y);
     print(y);
 }

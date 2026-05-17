@@ -15,7 +15,7 @@ namespace MathLib {
 
 // Тестирование массивов и циклов
 fn process_array(arr: [10]int32, factor: int32) -> void {
-    let mut i: int = 0;
+    mut i: int = 0;
     while i < len(arr) {
         if arr[i] % 2 == 0 {
             arr[i] = arr[i] * factor;
@@ -33,7 +33,7 @@ fn main() -> int {
     let _is_valid: bool = true;
     
     // Тест escape-последовательностей в строке
-    let mut myStr: string = "Hello, \"Bina\"!\n\tTest string logic.\\";
+    mut myStr: string = "Hello, \"Bina\"!\n\tTest string logic.\\";
     
     // 2. Тестирование различных числовых литералов с суффиксами и без
     let bigNum: uint64 = 123456789u64;
@@ -47,11 +47,11 @@ fn main() -> int {
     }
 
     // 4. Использование namespace, struct и обращения к полям через точку
-    let v1: MathLib::Vector2D;
+    let v1: MathLib::Vector2D = expr;
     v1.x = 1.0f64;
     v1.y = -2.5f64;
 
-    let v2: MathLib::Vector2D;
+    let v2: MathLib::Vector2D = expr;
     v2.x = 0.0;
     v2.y = 5.5;
 
