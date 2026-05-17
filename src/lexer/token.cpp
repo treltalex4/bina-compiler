@@ -1,6 +1,6 @@
-#include "lexer/token.hpp"
+module bina.lexer.token;
 
-#include <optional>
+import std;
 
 std::string tokenTypeToString(TokenType type) {
     switch (type) {

@@ -52,3 +52,6 @@ llvm.sh
 
 # VSCode
 .vscode/
+
+# Setup scripts
+llvm.sh

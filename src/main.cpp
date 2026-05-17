@@ -1,12 +1,8 @@
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-
-#include "lexer/lexer.hpp"
-#include "lexer/token.hpp"
-#include "parser/ast.hpp"
-#include "parser/parser.hpp"
+import std;
+import bina.lexer;
+import bina.lexer.token;
+import bina.parser;
+import bina.parser.ast;
 
 int main(int argc, char* argv[]) {
     bool dump_tokens = false;
@@ -15,13 +11,12 @@ int main(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--dump-tokens") {
+        if (arg == "--dump-tokens")
             dump_tokens = true;
-        } else if (arg == "--dump-ast") {
+        else if (arg == "--dump-ast")
             dump_ast = true;
-        } else {
+        else
             filename = arg;
-        }
     }
 
     if (filename.empty()) {
@@ -29,19 +24,17 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::fstream file(filename);
+    std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "error: cannot open file '" << filename << "'\n";
         return 1;
     }
-
     std::stringstream buf;
     buf << file.rdbuf();
     std::string source = buf.str();
 
     Lexer::Lexer lexer(source, filename);
     auto tokens = lexer.tokenize();
-
     if (!tokens) {
         std::cerr << tokens.error() << '\n';
         return 1;
@@ -51,23 +44,18 @@ int main(int argc, char* argv[]) {
         for (const auto& tok : tokens.value()) {
             std::cout << tok.line << ":" << tok.col << "  "
                       << tokenTypeToString(tok.type);
-            if (!tok.lexeme.empty())
-                std::cout << " \"" << tok.lexeme << "\"";
+            if (!tok.lexeme.empty()) std::cout << " \"" << tok.lexeme << "\"";
             std::cout << '\n';
         }
     }
 
     Parser::Parser parser(tokens.value(), filename);
     auto ast = parser.parse();
-
     if (!ast) {
         std::cerr << ast.error() << '\n';
         return 1;
     }
 
-    if (dump_ast) {
-        Parser::printAst(*ast, std::cout);
-    }
-
+    if (dump_ast) Parser::printAst(*ast, std::cout);
     return 0;
 }

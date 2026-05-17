@@ -1,6 +1,6 @@
-#include "parser/parser.hpp"
+module bina.parser;
 
-#include <sstream>
+import std;
 
 namespace Parser {
 
@@ -463,7 +463,7 @@ Block Parser::parseBlock() {
     Block block;
     consume(TokenType::LBRACE, "expected '{'");
     while (!isEnd() && peek().type != TokenType::RBRACE) {
-        size_t before = m_errors.size();
+        std::size_t before = m_errors.size();
         Stmt s = parseStatement();
         if (m_errors.size() > before) synchronize();
         block.statements.push_back(std::move(s));
@@ -670,7 +670,7 @@ Decl Parser::parseStructDecl() {
     consume(TokenType::LBRACE, "expected '{' in struct");
     std::vector<StructField> fields;
     while (!isEnd() && peek().type != TokenType::RBRACE) {
-        size_t before = m_errors.size();
+        std::size_t before = m_errors.size();
         fields.push_back(parseStructField());
         if (m_errors.size() > before) synchronize();
     }
@@ -688,7 +688,7 @@ Decl Parser::parseNamespaceDecl() {
     consume(TokenType::LBRACE, "expected '{' in namespace");
     std::vector<Decl> decls;
     while (!isEnd() && peek().type != TokenType::RBRACE) {
-        size_t before = m_errors.size();
+        std::size_t before = m_errors.size();
         Decl d = parseDeclaration();
         if (m_errors.size() > before) synchronize();
         decls.push_back(std::move(d));
@@ -746,7 +746,7 @@ std::expected<Program, std::string> Parser::parse() {
     }
     if (!m_errors.empty()) {
         std::ostringstream oss;
-        for (size_t i = 0; i < m_errors.size(); ++i) {
+        for (std::size_t i = 0; i < m_errors.size(); ++i) {
             if (i > 0) oss << '\n';
             oss << m_errors[i];
         }

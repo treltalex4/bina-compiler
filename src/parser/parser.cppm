@@ -1,13 +1,10 @@
-#pragma once
+export module bina.parser;
 
-#include <expected>
-#include <string>
-#include <vector>
+import std;
+import bina.lexer.token;
+import bina.parser.ast;
 
-#include "lexer/token.hpp"
-#include "parser/ast.hpp"
-
-namespace Parser {
+export namespace Parser {
 class Parser {
    public:
     Parser(const std::vector<Token>& tokens, const std::string& filename);
@@ -17,7 +14,7 @@ class Parser {
    private:
     std::vector<Token> m_token;
     std::string m_filename;
-    size_t m_pos = 0;
+    std::size_t m_pos = 0;
 
     std::vector<std::string> m_errors;
     bool m_allow_struct_lit = true;

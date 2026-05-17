@@ -1,9 +1,7 @@
-#include "parser/ast.hpp"
+module bina.parser.ast;
 
-#include <ostream>
-#include <string>
-
-#include "lexer/token.hpp"
+import std;
+import bina.lexer.token;
 
 namespace Parser {
 
@@ -18,27 +16,42 @@ std::string ind(int depth) { return std::string(depth * 2, ' '); }
 
 std::string opStr(TokenType op) {
     switch (op) {
-        case TokenType::PLUS: return "+";
-        case TokenType::MINUS: return "-";
-        case TokenType::STAR: return "*";
-        case TokenType::SLASH: return "/";
-        case TokenType::PERCENT: return "%";
-        case TokenType::EQUAL: return "==";
-        case TokenType::NOT_EQUAL: return "!=";
-        case TokenType::LESS: return "<";
-        case TokenType::GREATER: return ">";
-        case TokenType::LESS_EQUAL: return "<=";
-        case TokenType::GREATER_EQUAL: return ">=";
-        case TokenType::AND_AND: return "&&";
-        case TokenType::OR_OR: return "||";
-        case TokenType::NOT: return "!";
-        default: return "?";
+        case TokenType::PLUS:
+            return "+";
+        case TokenType::MINUS:
+            return "-";
+        case TokenType::STAR:
+            return "*";
+        case TokenType::SLASH:
+            return "/";
+        case TokenType::PERCENT:
+            return "%";
+        case TokenType::EQUAL:
+            return "==";
+        case TokenType::NOT_EQUAL:
+            return "!=";
+        case TokenType::LESS:
+            return "<";
+        case TokenType::GREATER:
+            return ">";
+        case TokenType::LESS_EQUAL:
+            return "<=";
+        case TokenType::GREATER_EQUAL:
+            return ">=";
+        case TokenType::AND_AND:
+            return "&&";
+        case TokenType::OR_OR:
+            return "||";
+        case TokenType::NOT:
+            return "!";
+        default:
+            return "?";
     }
 }
 
 std::string qualName(const std::vector<std::string>& parts) {
     std::string s;
-    for (size_t i = 0; i < parts.size(); ++i) {
+    for (std::size_t i = 0; i < parts.size(); ++i) {
         if (i > 0) s += "::";
         s += parts[i];
     }
@@ -94,10 +107,9 @@ void printExpr(const Expr& e, std::ostream& out, int depth) {
                 printExpr(u->operand, out, depth + 1);
             },
             [&](const std::unique_ptr<CallExpr>& c) {
-                out << ind(depth) << "CallExpr "
-                    << qualName(c->name.parts) << '\n';
-                for (const auto& arg : c->args)
-                    printExpr(arg, out, depth + 1);
+                out << ind(depth) << "CallExpr " << qualName(c->name.parts)
+                    << '\n';
+                for (const auto& arg : c->args) printExpr(arg, out, depth + 1);
             },
             [&](const std::unique_ptr<IndexExpr>& ix) {
                 out << ind(depth) << "IndexExpr\n";
@@ -132,8 +144,7 @@ void printExpr(const Expr& e, std::ostream& out, int depth) {
 
 void printBlock(const Block& b, std::ostream& out, int depth) {
     out << ind(depth) << "Block\n";
-    for (const auto& st : b.statements)
-        printStmt(st, out, depth + 1);
+    for (const auto& st : b.statements) printStmt(st, out, depth + 1);
 }
 
 void printFn(const FunctionDecl& fn, std::ostream& out, int depth) {
@@ -199,9 +210,7 @@ void printStmt(const Stmt& s, std::ostream& out, int depth) {
                 printBlock(*b, out, depth);
             },
             [&](const BreakStmt&) { out << ind(depth) << "BreakStmt\n"; },
-            [&](const ContinueStmt&) {
-                out << ind(depth) << "ContinueStmt\n";
-            },
+            [&](const ContinueStmt&) { out << ind(depth) << "ContinueStmt\n"; },
             [&](const NullStmt&) { out << ind(depth) << "NullStmt\n"; },
         },
         s.node);
@@ -231,8 +240,7 @@ void printDecl(const Decl& d, std::ostream& out, int depth) {
             },
             [&](const std::unique_ptr<ImplDecl>& impl) {
                 out << ind(depth) << "ImplDecl " << impl->struct_name << '\n';
-                for (const auto& m : impl->methods)
-                    printFn(*m, out, depth + 1);
+                for (const auto& m : impl->methods) printFn(*m, out, depth + 1);
             },
         },
         d.node);
@@ -242,8 +250,7 @@ void printDecl(const Decl& d, std::ostream& out, int depth) {
 
 void printAst(const Program& program, std::ostream& out) {
     out << "Program\n";
-    for (const auto& decl : program.declarations)
-        printDecl(decl, out, 1);
+    for (const auto& decl : program.declarations) printDecl(decl, out, 1);
 }
 
 }  // namespace Parser
