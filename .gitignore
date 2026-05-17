@@ -48,3 +48,6 @@ build/
 
 #clang
 .clang-format
+
+# VSCode
+.vscode/
