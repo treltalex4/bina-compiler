@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <string>
@@ -207,18 +208,17 @@ struct LetStmt {
 };
 
 struct AssignStmt {
-    Expr target;  // lvalue: Identifier, IndexExpr или FieldAccess
+    Expr target;
     Expr value;
 };
 
 struct ReturnStmt {
-    std::optional<Expr> value;  // void-функции: return; без значения
+    std::optional<Expr> value;
 };
 
 struct IfStmt {
     Expr condition;
     Block then_block;
-    // unique_ptr: else необязателен, а если есть — Block или ещё один IfStmt
     std::optional<std::unique_ptr<Stmt>> else_branch;
 };
 
@@ -269,4 +269,21 @@ struct ImplDecl {
 struct Program {
     std::vector<Decl> declarations;
 };
+
+inline Expr makeExpr(ExprNode node, NodeLocation loc) {
+    return Expr{std::move(node), loc};
+}
+inline Stmt makeStmt(StmtNode node, NodeLocation loc) {
+    return Stmt{std::move(node), loc};
+}
+inline Decl makeDecl(DeclNode node, NodeLocation loc) {
+    return Decl{std::move(node), loc};
+}
+inline TypeExpr makeType(TypeNode node, NodeLocation loc) {
+    return TypeExpr{std::move(node), loc};
+}
+
+// AST-принтер
+void printAst(const Program& program, std::ostream& out);
+
 }  // namespace Parser

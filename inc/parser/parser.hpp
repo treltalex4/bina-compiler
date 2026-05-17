@@ -31,6 +31,8 @@ class Parser {
     std::expected<Token, std::string> expect(TokenType type,
                                              const std::string& message);
 
+    void consume(TokenType type, const std::string& message);
+
     bool isEnd() const;
 
     NodeLocation makeLoc(const Token& token) const;
