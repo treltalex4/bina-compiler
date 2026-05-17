@@ -22,14 +22,6 @@ const Token& Parser::advance() {
     return t;
 }
 
-bool Parser::match(TokenType type) {
-    if (peek().type == type) {
-        advance();
-        return true;
-    }
-    return false;
-}
-
 std::expected<Token, std::string> Parser::expect(TokenType type,
                                                  const std::string& message) {
     if (peek().type == type) return advance();
@@ -739,18 +731,13 @@ Decl Parser::parseImplDecl() {
 
 // точка входа
 
-std::expected<Program, std::string> Parser::parse() {
+std::expected<Program, std::vector<std::string>> Parser::parse() {
     Program program;
     while (!isEnd()) {
         program.declarations.push_back(parseDeclaration());
     }
     if (!m_errors.empty()) {
-        std::ostringstream oss;
-        for (std::size_t i = 0; i < m_errors.size(); ++i) {
-            if (i > 0) oss << '\n';
-            oss << m_errors[i];
-        }
-        return std::unexpected(oss.str());
+        return std::unexpected(m_errors);
     }
     return program;
 }

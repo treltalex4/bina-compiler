@@ -9,7 +9,7 @@ class Parser {
    public:
     Parser(const std::vector<Token>& tokens, const std::string& filename);
 
-    std::expected<Program, std::string> parse();
+    std::expected<Program, std::vector<std::string>> parse();
 
    private:
     std::vector<Token> m_token;
@@ -22,8 +22,6 @@ class Parser {
     const Token& peek() const;
     const Token& peekNext() const;
     const Token& advance();
-
-    bool match(TokenType type);
 
     std::expected<Token, std::string> expect(TokenType type,
                                              const std::string& message);

@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     Parser::Parser parser(tokens.value(), filename);
     auto ast = parser.parse();
     if (!ast) {
-        std::cerr << ast.error() << '\n';
+        for (const auto& err : ast.error()) std::cerr << err << '\n';
         return 1;
     }
 
