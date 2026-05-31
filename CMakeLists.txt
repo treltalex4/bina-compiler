@@ -28,6 +28,11 @@ target_sources(bina
         src/lexer/lexer.cppm
         src/parser/ast.cppm
         src/parser/parser.cppm
+        src/semantic/semantic.cppm
+        src/semantic/scope.cppm
+        src/semantic/symbol.cppm
+        src/semantic/type.cppm
+        src/semantic/overload.cppm
 )
 
 target_sources(bina PRIVATE
@@ -35,6 +40,10 @@ target_sources(bina PRIVATE
     src/lexer/lexer.cpp
     src/parser/ast.cpp
     src/parser/parser.cpp
+    src/semantic/semantic.cpp
+    src/semantic/scope.cpp
+    src/semantic/type.cpp
+    src/semantic/overload.cpp
 )
 
 target_compile_options(bina PRIVATE -Wall -Wextra -Wpedantic)
