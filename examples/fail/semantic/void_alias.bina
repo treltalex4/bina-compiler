@@ -1,0 +1,6 @@
+// EXPECT_SEMANTIC_ERROR: type alias 'Nothing' cannot target void
+type Nothing = void;
+
+fn main() -> int {
+    return 0;
+}

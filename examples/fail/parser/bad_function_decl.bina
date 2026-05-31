@@ -1,0 +1,4 @@
+// EXPECT_PARSER_ERROR: expected parameter name
+fn main( -> int {
+    return 0;
+}

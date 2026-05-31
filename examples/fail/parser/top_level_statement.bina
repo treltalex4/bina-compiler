@@ -1,0 +1,6 @@
+// EXPECT_PARSER_ERROR: expected top-level declaration
+let x = 1;
+
+fn main() -> int {
+    return 0;
+}

@@ -1,0 +1,7 @@
+// EXPECT_SEMANTIC_ERROR: while condition must have type bool
+fn main() -> int {
+    while 1 {
+        return 0;
+    }
+    return 1;
+}

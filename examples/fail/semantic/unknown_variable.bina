@@ -1,0 +1,4 @@
+// EXPECT_SEMANTIC_ERROR: symbol 'x' not found
+fn main() -> int {
+    return x;
+}

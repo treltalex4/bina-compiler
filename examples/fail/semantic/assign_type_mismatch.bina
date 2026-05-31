@@ -1,0 +1,6 @@
+// EXPECT_SEMANTIC_ERROR: cannot assign value of type string
+fn main() -> int {
+    mut x: int32 = 1;
+    x = "hello";
+    return 0;
+}

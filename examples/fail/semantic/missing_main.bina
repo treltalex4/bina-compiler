@@ -1,0 +1,4 @@
+// EXPECT_SEMANTIC_ERROR: function 'main' is not defined
+fn helper() -> int {
+    return 0;
+}

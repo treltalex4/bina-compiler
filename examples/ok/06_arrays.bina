@@ -1,0 +1,21 @@
+// OK: fixed-size arrays, array literals, indexing, len, and mutable elements.
+fn sum(values: [5]int32) -> int32 {
+    mut i: int64 = 0;
+    mut total: int32 = 0;
+
+    while i < len(values) {
+        total = total + values[i];
+        i = i + 1;
+    }
+
+    return total;
+}
+
+fn main() -> int {
+    mut values: [5]int32 = [1, 2, 3, 4, 5];
+    values[2] = 30;
+
+    let total = sum(values);
+    print(total);
+    return 0;
+}

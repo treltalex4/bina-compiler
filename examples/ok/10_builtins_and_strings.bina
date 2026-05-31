@@ -1,0 +1,26 @@
+// OK: builtins, strings, string concatenation, string equality, exit and panic typing.
+fn stop_with(code: int) -> int {
+    exit(code);
+}
+
+fn fail_with(message: string) -> int {
+    panic(message);
+}
+
+fn main() -> int {
+    let greeting: string = "hello" + " " + "world";
+    let size: int64 = len(greeting);
+
+    print(greeting);
+    print(size);
+
+    if greeting == "hello world" {
+        print("match");
+    }
+
+    if greeting != "other" {
+        print("different");
+    }
+
+    return 0;
+}

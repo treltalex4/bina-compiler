@@ -1,0 +1,7 @@
+// EXPECT_SEMANTIC_ERROR: cyclic type alias
+type A = B;
+type B = A;
+
+fn main() -> int {
+    return 0;
+}

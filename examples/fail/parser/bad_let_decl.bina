@@ -1,0 +1,5 @@
+// EXPECT_PARSER_ERROR: expected variable name
+fn main() -> int {
+    let : int32 = 1;
+    return 0;
+}

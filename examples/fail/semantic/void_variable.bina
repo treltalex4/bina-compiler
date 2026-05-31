@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: variable 'x' cannot have type void
+fn main() -> int {
+    let x: void = print("x");
+    return 0;
+}

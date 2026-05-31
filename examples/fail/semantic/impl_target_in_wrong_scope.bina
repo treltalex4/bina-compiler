@@ -1,0 +1,16 @@
+// EXPECT_SEMANTIC_ERROR: impl for struct 'Point' must be declared in the same scope
+struct Point {
+    x: int32;
+}
+
+namespace Inner {
+    impl Point {
+        fn value(self: Point) -> int32 {
+            return self.x;
+        }
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

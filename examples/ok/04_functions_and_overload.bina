@@ -1,0 +1,36 @@
+// OK: function calls, forward references, recursion, overloads, and widening.
+fn main() -> int {
+    let a: int32 = square(7);
+    let b: float64 = square(2.5);
+    let c: int32 = add(10i8, 20i16);
+    let d: int32 = factorial(5);
+
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+    return later();
+}
+
+fn later() -> int {
+    return 0;
+}
+
+fn square(x: int32) -> int32 {
+    return x * x;
+}
+
+fn square(x: float64) -> float64 {
+    return x * x;
+}
+
+fn add(a: int32, b: int32) -> int32 {
+    return a + b;
+}
+
+fn factorial(n: int32) -> int32 {
+    if n <= 1 {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}

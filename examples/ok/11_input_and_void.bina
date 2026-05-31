@@ -1,0 +1,15 @@
+// OK: input() type checking, void functions, return; and null statements.
+fn read_line() -> string {
+    return input();
+}
+
+fn log_message(message: string) -> void {
+    print(message);
+    return;
+}
+
+fn main() -> int {
+    ;
+    log_message("input builtin is type-checked in read_line");
+    return 0;
+}

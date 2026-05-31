@@ -1,0 +1,32 @@
+// OK: if/else-if/else, while, break, continue, and all return paths.
+fn classify(x: int32) -> string {
+    if x > 0 {
+        return "positive";
+    } else if x == 0 {
+        return "zero";
+    } else {
+        return "negative";
+    }
+}
+
+fn main() -> int {
+    mut i: int32 = 0;
+    mut sum: int32 = 0;
+
+    while i < 10 {
+        i = i + 1;
+
+        if i == 3 {
+            continue;
+        }
+
+        if i == 8 {
+            break;
+        }
+
+        sum = sum + i;
+    }
+
+    print(classify(sum));
+    return 0;
+}

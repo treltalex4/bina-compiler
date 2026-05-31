@@ -1,0 +1,8 @@
+// EXPECT_PARSER_ERROR: expected ';' after struct field
+struct Point {
+    x: int32
+}
+
+fn main() -> int {
+    return 0;
+}

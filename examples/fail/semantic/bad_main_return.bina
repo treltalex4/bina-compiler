@@ -1,0 +1,4 @@
+// EXPECT_SEMANTIC_ERROR: function 'main' must return int
+fn main() -> void {
+    return;
+}

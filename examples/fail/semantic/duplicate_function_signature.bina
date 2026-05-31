@@ -1,0 +1,12 @@
+// EXPECT_SEMANTIC_ERROR: duplicate function overload
+fn f(x: int32) -> int32 {
+    return x;
+}
+
+fn f(y: int32) -> int32 {
+    return y;
+}
+
+fn main() -> int {
+    return f(1);
+}

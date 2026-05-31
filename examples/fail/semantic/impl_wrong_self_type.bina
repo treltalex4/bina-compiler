@@ -1,0 +1,14 @@
+// EXPECT_SEMANTIC_ERROR: method 'value' first parameter must have type Point
+struct Point {
+    x: int32;
+}
+
+impl Point {
+    fn value(self: int32) -> int32 {
+        return self;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

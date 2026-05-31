@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: break outside loop
+fn main() -> int {
+    break;
+    return 0;
+}

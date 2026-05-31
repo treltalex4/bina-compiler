@@ -1,0 +1,9 @@
+// EXPECT_SEMANTIC_ERROR: function 'helper' cannot be used as a value
+fn helper() -> int32 {
+    return 1;
+}
+
+fn main() -> int {
+    let x = helper;
+    return x;
+}

@@ -1,0 +1,12 @@
+// EXPECT_SEMANTIC_ERROR: ambiguous call
+fn pick(a: int64, b: int32) -> int32 {
+    return 1;
+}
+
+fn pick(a: int32, b: int64) -> int32 {
+    return 2;
+}
+
+fn main() -> int {
+    return pick(1i32, 2i32);
+}

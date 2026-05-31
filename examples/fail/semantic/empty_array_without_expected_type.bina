@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: cannot infer type of empty array literal
+fn main() -> int {
+    let values = [];
+    return 0;
+}

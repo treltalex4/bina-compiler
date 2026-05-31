@@ -1,0 +1,5 @@
+// EXPECT_LEXER_ERROR: unknown escape sequence
+fn main() -> int {
+    let s = "bad\qescape";
+    return 0;
+}

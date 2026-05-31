@@ -1,0 +1,35 @@
+// OK: type aliases, namespaces, nested namespaces, and qualified names.
+type Celsius = float64;
+type Fahrenheit = float64;
+
+namespace Temp {
+    struct Reading {
+        value: Celsius;
+        label: string;
+    }
+
+    fn to_fahrenheit(c: Celsius) -> Fahrenheit {
+        return c * 1.8 + 32.0;
+    }
+
+    namespace Labels {
+        fn body() -> string {
+            return "body";
+        }
+    }
+}
+
+fn main() -> int {
+    let reading: Temp::Reading = Temp::Reading {
+        value: 36.6,
+        label: Temp::Labels::body(),
+    };
+
+    let f: Fahrenheit = Temp::to_fahrenheit(reading.value);
+
+    if f > 98.0 {
+        print(reading.label);
+    }
+
+    return 0;
+}

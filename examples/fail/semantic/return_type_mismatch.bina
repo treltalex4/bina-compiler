@@ -1,0 +1,4 @@
+// EXPECT_SEMANTIC_ERROR: cannot return value of type string
+fn main() -> int {
+    return "hello";
+}

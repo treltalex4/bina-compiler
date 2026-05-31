@@ -1,0 +1,25 @@
+// OK: struct declarations, struct literals, field access, and nominal types.
+struct Point {
+    x: float64;
+    y: float64;
+}
+
+struct Pair {
+    left: int32;
+    right: int32;
+}
+
+fn shift(p: Point, dx: float64, dy: float64) -> Point {
+    return Point { x: p.x + dx, y: p.y + dy };
+}
+
+fn main() -> int {
+    let p = Point { x: 1.0, y: 2.0 };
+    let q = shift(p, 3.0, 4.0);
+    let pair = Pair { left: 10, right: 20 };
+
+    print(q.x);
+    print(q.y);
+    print(pair.left + pair.right);
+    return 0;
+}

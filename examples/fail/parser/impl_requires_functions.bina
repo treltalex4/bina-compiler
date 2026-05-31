@@ -1,0 +1,12 @@
+// EXPECT_PARSER_ERROR: expected 'fn' in impl block
+struct Point {
+    x: int32;
+}
+
+impl Point {
+    let x = 1;
+}
+
+fn main() -> int {
+    return 0;
+}

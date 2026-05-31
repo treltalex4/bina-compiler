@@ -1,0 +1,14 @@
+// EXPECT_SEMANTIC_ERROR: first method parameter must be named 'self'
+struct Point {
+    x: int32;
+}
+
+impl Point {
+    fn value(this: Point) -> int32 {
+        return this.x;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

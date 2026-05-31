@@ -1,0 +1,6 @@
+// EXPECT_SEMANTIC_ERROR: symbol 'x' not found
+fn main() -> int {
+    print(x);
+    let x = 1;
+    return 0;
+}

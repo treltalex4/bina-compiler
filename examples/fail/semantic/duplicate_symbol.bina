@@ -1,0 +1,10 @@
+// EXPECT_SEMANTIC_ERROR: symbol 'Thing' is already declared
+struct Thing {
+    value: int32;
+}
+
+type Thing = int32;
+
+fn main() -> int {
+    return 0;
+}

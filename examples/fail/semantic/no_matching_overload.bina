@@ -1,0 +1,8 @@
+// EXPECT_SEMANTIC_ERROR: no matching overload
+fn twice(x: int32) -> int32 {
+    return x * 2;
+}
+
+fn main() -> int {
+    return twice("hello");
+}

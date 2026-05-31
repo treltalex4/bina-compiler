@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: continue outside loop
+fn main() -> int {
+    continue;
+    return 0;
+}

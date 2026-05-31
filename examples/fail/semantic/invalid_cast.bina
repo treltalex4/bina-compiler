@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: invalid cast from string to int32
+fn main() -> int {
+    let x = cast<int32>("42");
+    return x;
+}

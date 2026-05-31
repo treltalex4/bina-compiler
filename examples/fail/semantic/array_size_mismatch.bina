@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: array literal has 2 elements but expected 3
+fn main() -> int {
+    let values: [3]int32 = [1, 2];
+    return 0;
+}

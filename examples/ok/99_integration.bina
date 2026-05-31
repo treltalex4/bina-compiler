@@ -1,0 +1,66 @@
+// OK: integrated example covering aliases, namespaces, structs, impl, arrays, loops, and overloads.
+type Scalar = float64;
+
+namespace Geometry {
+    struct Vec2 {
+        x: Scalar;
+        y: Scalar;
+    }
+
+    impl Vec2 {
+        fn length_sq(self: Vec2) -> Scalar {
+            return self.x * self.x + self.y * self.y;
+        }
+
+        fn scale(self: Vec2, factor: Scalar) -> Vec2 {
+            return Vec2 {
+                x: self.x * factor,
+                y: self.y * factor,
+            };
+        }
+    }
+
+    fn make_vec2(x: Scalar, y: Scalar) -> Vec2 {
+        return Vec2 { x: x, y: y };
+    }
+}
+
+fn total(values: [4]int32) -> int32 {
+    mut i: int64 = 0;
+    mut acc: int32 = 0;
+
+    while i < len(values) {
+        acc = acc + values[i];
+        i = i + 1;
+    }
+
+    return acc;
+}
+
+fn describe(value: int32) -> string {
+    if value > 0 {
+        return "positive";
+    } else if value == 0 {
+        return "zero";
+    } else {
+        return "negative";
+    }
+}
+
+fn describe(value: bool) -> string {
+    if value {
+        return "true";
+    }
+    return "false";
+}
+
+fn main() -> int {
+    let nums: [4]int32 = [1, 2, 3, 4];
+    let sum = total(nums);
+    let v = Geometry::make_vec2(3.0, 4.0);
+    let scaled = v.scale(2.0);
+
+    print(describe(sum));
+    print(describe(scaled.length_sq() > v.length_sq()));
+    return 0;
+}

@@ -1,0 +1,23 @@
+// OK: let/mut, assignment to mutable variables, field mutability, and shadowing.
+struct Counter {
+    value: int32;
+}
+
+fn main() -> int {
+    let x: int32 = 10;
+    mut y: int32 = x;
+    y = y + 1;
+
+    {
+        let x: int32 = 20;
+        print(x);
+    }
+
+    print(x);
+
+    mut c = Counter { value: y };
+    c.value = c.value + 1;
+    print(c.value);
+
+    return 0;
+}

@@ -1,0 +1,16 @@
+// OK: arithmetic, logical operators, comparisons, precedence, and casts.
+fn main() -> int {
+    let a: int32 = 1 + 2 * 3;
+    let b: int32 = (1 + 2) * 3;
+    let c: int32 = 10 % 3;
+    let d: int32 = -a + b - c;
+
+    let x: float64 = cast<float64>(d) / 2.0;
+    let ok: bool = (a < b) && !(c == 0) || (x >= 0.0);
+
+    if ok {
+        print("operators ok");
+    }
+
+    return 0;
+}

@@ -1,0 +1,8 @@
+// EXPECT_SEMANTIC_ERROR: field 'x' cannot have type void
+struct Bad {
+    x: void;
+}
+
+fn main() -> int {
+    return 0;
+}

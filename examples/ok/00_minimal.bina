@@ -1,0 +1,4 @@
+// OK: minimal valid program and required entry point.
+fn main() -> int {
+    return 0;
+}

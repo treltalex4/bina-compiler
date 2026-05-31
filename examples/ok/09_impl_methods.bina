@@ -1,0 +1,39 @@
+// OK: impl methods, obj.method(), Struct::method(obj), and method overloads.
+struct Rect {
+    width: float64;
+    height: float64;
+}
+
+impl Rect {
+    fn area(self: Rect) -> float64 {
+        return self.width * self.height;
+    }
+
+    fn scale(self: Rect, factor: float64) -> Rect {
+        return Rect {
+            width: self.width * factor,
+            height: self.height * factor,
+        };
+    }
+
+    fn scale(self: Rect, x_factor: float64, y_factor: float64) -> Rect {
+        return Rect {
+            width: self.width * x_factor,
+            height: self.height * y_factor,
+        };
+    }
+}
+
+fn main() -> int {
+    let r = Rect { width: 10.0, height: 5.0 };
+    let a = r.area();
+    let b = Rect::area(r);
+    let bigger = r.scale(2.0);
+    let wider = r.scale(3.0, 1.0);
+
+    print(a);
+    print(b);
+    print(bigger.area());
+    print(wider.area());
+    return 0;
+}

@@ -1,0 +1,8 @@
+// EXPECT_SEMANTIC_ERROR: parameter 'x' cannot have type void
+fn f(x: void) -> int32 {
+    return 0;
+}
+
+fn main() -> int {
+    return f(print("x"));
+}

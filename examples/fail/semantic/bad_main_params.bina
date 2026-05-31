@@ -1,0 +1,4 @@
+// EXPECT_SEMANTIC_ERROR: function 'main' must not have parameters
+fn main(argc: int32) -> int {
+    return argc;
+}

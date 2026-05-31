@@ -1,0 +1,36 @@
+// OK: primitive types, literal suffixes, and local type inference.
+fn main() -> int {
+    let inferred_int = 42;
+    let inferred_float = 3.14;
+    let inferred_bool = true;
+    let inferred_string = "hello";
+
+    let a: int8 = -12i8;
+    let b: int16 = 32000i16;
+    let c: int32 = inferred_int;
+    let d: int64 = 3000000000;
+
+    let e: uint8 = 255u8;
+    let f: uint16 = 65000u16;
+    let g: uint32 = 4000000000u32;
+    let h: uint64 = 9000000000u64;
+
+    let i: float32 = 1.5f32;
+    let j: float64 = inferred_float;
+
+    if inferred_bool {
+        print(inferred_string);
+    }
+
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+    print(e);
+    print(f);
+    print(g);
+    print(h);
+    print(i);
+    print(j);
+    return 0;
+}

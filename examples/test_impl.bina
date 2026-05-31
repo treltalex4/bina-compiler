@@ -10,5 +10,10 @@ impl Point {
 }
 
 fn main() -> int {
+    let p = Point { x: 2.0, y: 3.0 };
+    let a = p.length();
+    let b = Point::length(p);
+    print(a);
+    print(b);
     return 0;
 }

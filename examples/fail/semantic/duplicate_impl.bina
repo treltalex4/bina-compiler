@@ -1,0 +1,20 @@
+// EXPECT_SEMANTIC_ERROR: duplicate impl
+struct Point {
+    x: int32;
+}
+
+impl Point {
+    fn value(self: Point) -> int32 {
+        return self.x;
+    }
+}
+
+impl Point {
+    fn other(self: Point) -> int32 {
+        return self.x;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

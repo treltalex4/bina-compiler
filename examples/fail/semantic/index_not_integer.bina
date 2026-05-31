@@ -1,0 +1,6 @@
+// EXPECT_SEMANTIC_ERROR: array index must be integer
+fn main() -> int {
+    let values: [2]int32 = [10, 20];
+    let x = values[true];
+    return x;
+}

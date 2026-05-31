@@ -1,0 +1,10 @@
+// EXPECT_SEMANTIC_ERROR: duplicate field initializer
+struct Point {
+    x: float64;
+    y: float64;
+}
+
+fn main() -> int {
+    let p = Point { x: 1.0, x: 2.0, y: 3.0 };
+    return 0;
+}

@@ -1,0 +1,10 @@
+// EXPECT_SEMANTIC_ERROR: not all control paths return a value
+fn maybe(flag: bool) -> int32 {
+    if flag {
+        return 1;
+    }
+}
+
+fn main() -> int {
+    return maybe(true);
+}

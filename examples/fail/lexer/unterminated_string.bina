@@ -1,0 +1,5 @@
+// EXPECT_LEXER_ERROR: unterminated string
+fn main() -> int {
+    let s = "never closed;
+    return 0;
+}

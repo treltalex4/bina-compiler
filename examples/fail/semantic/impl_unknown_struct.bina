@@ -1,0 +1,10 @@
+// EXPECT_SEMANTIC_ERROR: impl target struct 'Missing' not found
+impl Missing {
+    fn value(self: Missing) -> int32 {
+        return 0;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}
