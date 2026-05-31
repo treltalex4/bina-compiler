@@ -162,6 +162,12 @@ std::expected<std::vector<Token>, std::string> Lexer::tokenize() {
         }
         // числа
         else if (std::isdigit(c)) {
+            auto invalidNumericSuffix = [&]() {
+                return std::unexpected(
+                    m_filename + ":" + std::to_string(startLine) + ":" +
+                    std::to_string(startCol) + ": error: invalid numeric suffix");
+            };
+
             std::string num(1, c);
             while (!isEnd() && std::isdigit(peek())) {
                 num += advance();
@@ -171,21 +177,39 @@ std::expected<std::vector<Token>, std::string> Lexer::tokenize() {
                 while (!isEnd() && std::isdigit(peek())) {
                     num += advance();
                 }
-                if (peek() == 'f' && (peekNext() == '3' || peekNext() == '6')) {
-                    num += advance();
-                    num += advance();
-                    if (!isEnd() && std::isdigit(peek())) {
-                        num += advance();
+                if (peek() == 'f') {
+                    std::string suffix;
+                    suffix += advance();
+                    while (!isEnd() && std::isdigit(peek())) {
+                        suffix += advance();
                     }
+                    if (suffix != "f32" && suffix != "f64") {
+                        return invalidNumericSuffix();
+                    }
+                    num += suffix;
+                } else if (std::isalpha(static_cast<unsigned char>(peek())) ||
+                           peek() == '_') {
+                    return invalidNumericSuffix();
                 }
                 tokens.push_back(
                     {TokenType::FLOAT_LIT, num, startLine, startCol});
             } else {
                 if (peek() == 'i' || peek() == 'u') {
-                    num += advance();
+                    std::string suffix;
+                    suffix += advance();
                     while (!isEnd() && std::isdigit(peek())) {
-                        num += advance();
+                        suffix += advance();
                     }
+                    if (suffix != "i8" && suffix != "i16" &&
+                        suffix != "i32" && suffix != "i64" &&
+                        suffix != "u8" && suffix != "u16" &&
+                        suffix != "u32" && suffix != "u64") {
+                        return invalidNumericSuffix();
+                    }
+                    num += suffix;
+                } else if (std::isalpha(static_cast<unsigned char>(peek())) ||
+                           peek() == '_') {
+                    return invalidNumericSuffix();
                 }
                 tokens.push_back(
                     {TokenType::INT_LIT, num, startLine, startCol});

@@ -120,6 +120,11 @@ void printExpr(const Expr& e, std::ostream& out, int depth) {
                 out << ind(depth) << "FieldAccess ." << fa->field << '\n';
                 printExpr(fa->object, out, depth + 1);
             },
+            [&](const std::unique_ptr<MethodCall>& mc) {
+                out << ind(depth) << "MethodCall ." << mc->method << '\n';
+                printExpr(mc->object, out, depth + 1);
+                for (const auto& arg : mc->args) printExpr(arg, out, depth + 1);
+            },
             [&](const std::unique_ptr<CastExpr>& ce) {
                 out << ind(depth) << "CastExpr\n";
                 printType(ce->target_type, out, depth + 1);

@@ -3,10 +3,12 @@ import bina.lexer;
 import bina.lexer.token;
 import bina.parser;
 import bina.parser.ast;
+import bina.semantic;
 
 int main(int argc, char* argv[]) {
     bool dump_tokens = false;
     bool dump_ast = false;
+    bool dump_symbols = false;
     std::string filename;
 
     for (int i = 1; i < argc; ++i) {
@@ -15,12 +17,14 @@ int main(int argc, char* argv[]) {
             dump_tokens = true;
         else if (arg == "--dump-ast")
             dump_ast = true;
+        else if (arg == "--dump-symbols")
+            dump_symbols = true;
         else
             filename = arg;
     }
 
     if (filename.empty()) {
-        std::cerr << "Usage: bina [--dump-tokens] [--dump-ast] <source.bina>\n";
+        std::cerr << "Usage: bina [--dump-tokens] [--dump-ast] [--dump-symbols] <source.bina>\n";
         return 1;
     }
 
@@ -47,6 +51,7 @@ int main(int argc, char* argv[]) {
             if (!tok.lexeme.empty()) std::cout << " \"" << tok.lexeme << "\"";
             std::cout << '\n';
         }
+        return 0;
     }
 
     Parser::Parser parser(tokens.value(), filename);
@@ -56,6 +61,22 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (dump_ast) Parser::printAst(*ast, std::cout);
+    if (dump_ast) {
+        Parser::printAst(*ast, std::cout);
+        return 0;
+    }
+
+    Semantic::Semantic sema(*ast, filename);
+    auto typed = sema.analyze();
+    if (!typed) {
+        for (const auto& err : typed.error()) std::cerr << err << '\n';
+        return 1;
+    }
+
+    if (dump_symbols) {
+        typed->global_scope->dumpSymbols(std::cout);
+        return 0;
+    }
+
     return 0;
 }

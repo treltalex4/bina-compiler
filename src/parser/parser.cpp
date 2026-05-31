@@ -194,7 +194,9 @@ Expr Parser::parseUnary() {
     return parsePostfix();
 }
 
-// postfix_expr = primary_expr { "[" expr "]" | "." IDENT }
+// postfix_expr = primary_expr {
+//     "[" expr "]" | "." IDENT | "." IDENT "(" [args] ")"
+// }
 Expr Parser::parsePostfix() {
     Expr expr = parsePrimary();
     while (true) {
@@ -216,9 +218,28 @@ Expr Parser::parsePostfix() {
             auto name_tok =
                 expect(TokenType::IDENT, "expected field name after '.'");
             std::string field = name_tok ? name_tok->lexeme : "";
-            auto fa = std::make_unique<FieldAccess>(
-                FieldAccess{std::move(expr), std::move(field)});
-            expr = Expr{std::move(fa), loc};
+
+            if (peek().type == TokenType::LPAREN) {
+                advance();
+                std::vector<Expr> args;
+                if (peek().type != TokenType::RPAREN) {
+                    StructLitGuard guard(m_allow_struct_lit, true);
+                    args.push_back(parseExpression());
+                    while (peek().type == TokenType::COMMA) {
+                        advance();
+                        args.push_back(parseExpression());
+                    }
+                }
+                consume(TokenType::RPAREN, "expected ')' after method arguments");
+                auto call = std::make_unique<MethodCall>(
+                    MethodCall{std::move(expr), std::move(field),
+                               std::move(args)});
+                expr = Expr{std::move(call), loc};
+            } else {
+                auto fa = std::make_unique<FieldAccess>(
+                    FieldAccess{std::move(expr), std::move(field)});
+                expr = Expr{std::move(fa), loc};
+            }
         } else {
             break;
         }

@@ -21,6 +21,7 @@ struct UnaryExpr;
 struct CallExpr;
 struct IndexExpr;
 struct FieldAccess;
+struct MethodCall;
 struct CastExpr;
 struct ArrayLiteral;
 struct StructLiteral;
@@ -89,8 +90,8 @@ using ExprNode =
                  Identifier, std::unique_ptr<BinaryExpr>,
                  std::unique_ptr<UnaryExpr>, std::unique_ptr<CallExpr>,
                  std::unique_ptr<IndexExpr>, std::unique_ptr<FieldAccess>,
-                 std::unique_ptr<CastExpr>, std::unique_ptr<ArrayLiteral>,
-                 std::unique_ptr<StructLiteral>>;
+                 std::unique_ptr<MethodCall>, std::unique_ptr<CastExpr>,
+                 std::unique_ptr<ArrayLiteral>, std::unique_ptr<StructLiteral>>;
 
 struct Expr {
     ExprNode node;
@@ -155,6 +156,12 @@ struct IndexExpr {
 struct FieldAccess {
     Expr object;
     std::string field;
+};
+
+struct MethodCall {
+    Expr object;
+    std::string method;
+    std::vector<Expr> args;
 };
 
 struct CastExpr {
