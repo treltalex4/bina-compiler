@@ -9,19 +9,23 @@ cmake --preset default
 cmake --build build
 ```
 
-Требуется: `clang++-22`, `clang-scan-deps-22`, `libc++-22`, CMake ≥ 3.30, Ninja.
+Требуется: `clang++-22`, `clang-scan-deps-22`, `libc++-22`, `llc-22`,
+C-компилятор (`cc`), CMake ≥ 3.30, Ninja.
 
 ## Запуск
 
 ```bash
-./build/bina <source.bina>              # frontend-проверка: lexer + parser + semantic
+./build/bina <source.bina> -o <output>  # сборка исполняемого файла
+./build/bina --emit-ir <source>         # вывод LLVM IR в stdout
+./build/bina --no-link <source> -o obj  # сборка object-файла без линковки
 ./build/bina --dump-tokens <source>     # вывод потока токенов
 ./build/bina --dump-ast <source>        # вывод AST
 ./build/bina --dump-symbols <source>    # вывод глобальной области видимости
 ```
 
-Генератор кода пока не реализован, поэтому запуск без dump-флагов выполняет
-проверку программы до семантического анализа включительно.
+Запуск без dump-флагов выполняет полный pipeline: lexer → parser → semantic →
+LLVM IR → object-файл → executable. Runtime-объект `bina_runtime.o` копируется
+рядом с `build/bina` при сборке.
 
 Примеры программ — в [examples/](examples/).
 
@@ -30,13 +34,14 @@ cmake --build build
 - [specs/grammar.md](specs/grammar.md) — лексика и синтаксис (EBNF)
 - [specs/semantics.md](specs/semantics.md) — семантика конструкций
 - [specs/types.md](specs/types.md) — система типов
+- [specs/codegen.md](specs/codegen.md) — генерация LLVM IR, ABI и runtime
 
 ## Статус реализации
 
 - [x] Лексер
 - [x] Парсер (рекурсивный спуск, AST с `std::variant`)
 - [x] Семантический анализатор
-- [ ] Генератор кода (LLVM IR)
+- [x] Генератор кода (текстовый LLVM IR + `llc` + C-runtime)
 
 ## Дополнительные возможности
 
@@ -48,4 +53,4 @@ cmake --build build
 - **[A.2.9](projectv1.0.md#L531) Перегрузка функций и методов** — несколько функций или методов с одним именем, различающихся сигнатурой.
 - **[A.3.1](projectv1.0.md#L549) Разрешение перегрузок с неявными приведениями** — при выборе перегрузки учитываются допустимые числовые расширения; неоднозначные вызовы диагностируются.
 - **[B.1.1](projectv1.0.md#L577) Восстановление после синтаксических ошибок** — парсер синхронизируется после ошибки и может вывести несколько диагностик за один запуск.
-- **[B.1.5](projectv1.0.md#L585) Дополнительный CLI-режим** — частичная реализация: флаг `--dump-symbols` выводит собранную таблицу символов.
+- **[B.1.5](projectv1.0.md#L585) Дополнительный CLI-режим** — поддержаны диагностические и backend-флаги: `--dump-tokens`, `--dump-ast`, `--dump-symbols`, `--emit-ir`, `--no-link` и `-o`.
