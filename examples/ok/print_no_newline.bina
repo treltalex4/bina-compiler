@@ -1,0 +1,7 @@
+fn main() -> int {
+    print("hello");
+    print(" ");
+    print("world");
+    print("\n");
+    return 0;
+}

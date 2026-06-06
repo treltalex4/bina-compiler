@@ -1,0 +1,4 @@
+fn main() -> int {
+    let c = char_from(0x110000);
+    return 0;
+}

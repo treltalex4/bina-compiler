@@ -1,0 +1,4 @@
+fn main() -> int {
+    panic("custom error");
+    return 0;
+}

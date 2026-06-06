@@ -1,0 +1,6 @@
+fn main() -> int {
+    let a: int32 = 10;
+    let b: int32 = 0;
+    let c = a / b;
+    return c;
+}

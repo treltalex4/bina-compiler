@@ -1,0 +1,5 @@
+fn main() -> int {
+    let a: [3]int32 = [1, 2, 3];
+    let x = a[5];
+    return x;
+}

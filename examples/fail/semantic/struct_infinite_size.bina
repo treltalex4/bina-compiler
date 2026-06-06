@@ -1,0 +1,7 @@
+struct Node {
+    next: [1]Node;
+}
+
+fn main() -> int {
+    return 0;
+}

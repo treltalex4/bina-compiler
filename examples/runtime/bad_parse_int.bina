@@ -1,0 +1,4 @@
+fn main() -> int {
+    let n: int32 = cast<int32>("not a number");
+    return n;
+}

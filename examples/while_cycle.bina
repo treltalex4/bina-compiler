@@ -1,0 +1,14 @@
+fn print_arr() -> void {
+    let a: [10]int32 = [1, 2, 3, 4, 6, 7, 30, 8, 23, 532];
+    mut i: int = 0;
+
+    while i < 10 {
+        print(cast<string>(a[i]) + " ");
+        i = i + 1;
+    }
+}
+
+fn main() -> int {
+    print_arr();
+    return 0;
+}

@@ -1,0 +1,4 @@
+fn main() -> int {
+    let n: int8 = cast<int8>("1000");
+    return n;
+}
