@@ -1,0 +1,28 @@
+// OK: struct equality and inequality.
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+struct Line {
+    a: Point;
+    b: Point;
+}
+
+fn main() -> int {
+    let p1 = Point { x: 1, y: 2 };
+    let p2 = Point { x: 1, y: 2 };
+    let p3 = Point { x: 2, y: 1 };
+
+    let same_point: bool = p1 == p2;
+    let different_point: bool = p1 != p3;
+
+    let l1 = Line { a: p1, b: p2 };
+    let l2 = Line { a: p1, b: p2 };
+    let same_line: bool = l1 == l2;
+
+    assert(same_point);
+    assert(different_point);
+    assert(same_line);
+    return 0;
+}

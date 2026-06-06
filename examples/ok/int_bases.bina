@@ -1,0 +1,23 @@
+// OK: hexadecimal and binary integer literals.
+fn main() -> int {
+    let inferred_hex = 0x10;
+    let inferred_bin = 0b1010;
+
+    let a: int32 = 0xFF;
+    let b: int64 = 0X7FFFFFFF;
+    let c: uint8 = 0b11111111u8;
+    let d: int32 = 0B1010i32;
+    let e: uint64 = 0xFFFFFFFFFFFFFFFFu64;
+
+    let arr: [0x4]int32 = [1, 2, 3, 4];
+    let arr2: [0b10]int32 = [inferred_hex, inferred_bin];
+
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+    print(e);
+    print(arr[0]);
+    print(arr2[1]);
+    return 0;
+}

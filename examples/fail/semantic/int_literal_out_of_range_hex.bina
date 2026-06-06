@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: out of range for uint8
+fn main() -> int {
+    let x: uint8 = 0x100;
+    return 0;
+}

@@ -1,0 +1,6 @@
+// OK: assert builtin typing.
+fn main() -> int {
+    assert(true);
+    assert(1 < 2);
+    return 0;
+}

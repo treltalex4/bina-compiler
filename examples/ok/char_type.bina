@@ -1,0 +1,9 @@
+fn main() -> int {
+    let a: char = 'A';
+    let b: char = '\n';
+    let c: char = '\'';
+    let d: char = '\\';
+    let e: char = 'Ж';
+    let f: char = '\u{1F600}';
+    return 0;
+}

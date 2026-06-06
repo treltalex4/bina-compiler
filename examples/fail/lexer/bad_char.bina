@@ -1,0 +1,10 @@
+fn main() -> int {
+    let c: char = '';
+    let c: char = 'ab';
+    let c: char = '
+    let c: char = '\x';
+    let c: char = '\u{}';
+    let c: char = '\u{1G600}';
+    let c: char = '\u{110000}';
+    let c: char = '\u{D800}';
+}

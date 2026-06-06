@@ -1,0 +1,13 @@
+// OK: array equality and inequality.
+fn main() -> int {
+    let a: [3]int32 = [1, 2, 3];
+    let b: [3]int32 = [1, 2, 3];
+    let c: [3]int32 = [3, 2, 1];
+
+    let same: bool = a == b;
+    let different: bool = a != c;
+
+    assert(same);
+    assert(different);
+    return 0;
+}

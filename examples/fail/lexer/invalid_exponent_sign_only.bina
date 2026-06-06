@@ -1,0 +1,5 @@
+// EXPECT_LEXER_ERROR: invalid float exponent
+fn main() -> int {
+    let x = 1e+;
+    return 0;
+}

@@ -1,0 +1,5 @@
+// EXPECT_SEMANTIC_ERROR: assert expects 1 argument
+fn main() -> int {
+    assert(true, false);
+    return 0;
+}

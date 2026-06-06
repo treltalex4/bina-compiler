@@ -1,0 +1,15 @@
+// EXPECT_SEMANTIC_ERROR: cannot compare A and B
+struct A {
+    x: int32;
+}
+
+struct B {
+    x: int32;
+}
+
+fn main() -> int {
+    let a = A { x: 1 };
+    let b = B { x: 1 };
+    let bad = a == b;
+    return 0;
+}

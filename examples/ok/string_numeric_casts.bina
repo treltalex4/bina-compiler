@@ -1,0 +1,19 @@
+// OK: explicit casts between strings and numeric types.
+fn main() -> int {
+    let a: string = cast<string>(42);
+    let b: string = cast<string>(3.14);
+    let c: int32 = cast<int32>("42");
+    let d: uint64 = cast<uint64>("123");
+    let e: float64 = cast<float64>("1.5");
+    let f: float64 = cast<float64>("inf");
+    let g: float32 = cast<float32>("nan");
+
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+    print(e);
+    print(f);
+    print(g);
+    return 0;
+}

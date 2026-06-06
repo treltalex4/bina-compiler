@@ -1,0 +1,5 @@
+// EXPECT_LEXER_ERROR: invalid numeric suffix
+fn main() -> int {
+    let x = 1e6i32;
+    return 0;
+}

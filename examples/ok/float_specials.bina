@@ -1,0 +1,17 @@
+// OK: special float literals.
+fn main() -> int {
+    let a = inf;
+    let b = -inf;
+    let c = nan;
+    let d = NaN;
+    let e: float32 = inf;
+    let f: float32 = -inf;
+
+    print(a);
+    print(b);
+    print(c);
+    print(d);
+    print(e);
+    print(f);
+    return 0;
+}
