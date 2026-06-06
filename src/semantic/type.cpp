@@ -79,6 +79,8 @@ std::string typeToString(const Type& type) {
             return "float64";
         case TypeKind::BOOL:
             return "bool";
+        case TypeKind::CHAR:
+            return "char";
         case TypeKind::STRING:
             return "string";
         case TypeKind::VOID:

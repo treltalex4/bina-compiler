@@ -86,6 +86,9 @@ void printExpr(const Expr& e, std::ostream& out, int depth) {
             [&](const FloatLiteral& v) {
                 out << ind(depth) << "FloatLiteral " << v.value << '\n';
             },
+            [&](const CharLiteral& v) {
+                out << ind(depth) << "CharLiteral " << v.value << '\n';
+            },
             [&](const StringLiteral& v) {
                 out << ind(depth) << "StringLiteral \"" << v.value << "\"\n";
             },

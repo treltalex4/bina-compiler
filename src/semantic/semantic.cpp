@@ -91,29 +91,12 @@ std::optional<TypeKind> builtinTypeKind(const std::string& name) {
         {"uint16", TypeKind::UINT16},   {"uint32", TypeKind::UINT32},
         {"uint64", TypeKind::UINT64},   {"float32", TypeKind::FLOAT32},
         {"float64", TypeKind::FLOAT64}, {"bool", TypeKind::BOOL},
-        {"string", TypeKind::STRING},   {"void", TypeKind::VOID},
+        {"char", TypeKind::CHAR},       {"string", TypeKind::STRING},
+        {"void", TypeKind::VOID},
     };
 
     if (auto it = types.find(name); it != types.end()) return it->second;
     return std::nullopt;
-}
-
-std::string integerDigits(const std::string& value) {
-    std::size_t end = 0;
-    while (end < value.size() &&
-           std::isdigit(static_cast<unsigned char>(value[end]))) {
-        ++end;
-    }
-    return value.substr(0, end);
-}
-
-std::string integerSuffix(const std::string& value) {
-    std::size_t end = 0;
-    while (end < value.size() &&
-           std::isdigit(static_cast<unsigned char>(value[end]))) {
-        ++end;
-    }
-    return value.substr(end);
 }
 
 std::string trimLeadingZeros(std::string value) {
@@ -142,6 +125,120 @@ std::optional<TypeKind> integerSuffixKind(const std::string& suffix) {
     return std::nullopt;
 }
 
+struct ParsedIntLiteral {
+    std::string digits;
+    int base;
+    std::string suffix;
+};
+
+int digitValue(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+bool isDigitForBase(char c, int base) {
+    int value = digitValue(c);
+    return value >= 0 && value < base;
+}
+
+std::string invalidBaseLiteralMessage(int base) {
+    if (base == 16) return "invalid hexadecimal literal";
+    if (base == 2) return "invalid binary literal";
+    return "invalid integer literal";
+}
+
+std::expected<ParsedIntLiteral, std::string> parseIntLiteral(
+    const std::string& value) {
+    if (value.empty()) {
+        return std::unexpected("invalid integer literal");
+    }
+
+    int base = 10;
+    std::size_t pos = 0;
+
+    if (value.size() >= 2 && value[0] == '0' &&
+        (value[1] == 'x' || value[1] == 'X')) {
+        base = 16;
+        pos = 2;
+    } else if (value.size() >= 2 && value[0] == '0' &&
+               (value[1] == 'b' || value[1] == 'B')) {
+        base = 2;
+        pos = 2;
+    }
+
+    std::size_t digits_begin = pos;
+    while (pos < value.size() && isDigitForBase(value[pos], base)) {
+        ++pos;
+    }
+
+    if (pos == digits_begin) {
+        return std::unexpected(invalidBaseLiteralMessage(base));
+    }
+
+    std::string suffix = value.substr(pos);
+    if (!suffix.empty() && !integerSuffixKind(suffix)) {
+        return std::unexpected("invalid integer literal suffix '" + suffix +
+                               "'");
+    }
+
+    return ParsedIntLiteral{
+        .digits = value.substr(digits_begin, pos - digits_begin),
+        .base = base,
+        .suffix = std::move(suffix),
+    };
+}
+
+std::string multiplyDecimalString(std::string value, int multiplier) {
+    value = trimLeadingZeros(std::move(value));
+
+    int carry = 0;
+    std::string result;
+    result.reserve(value.size() + 1);
+
+    for (auto it = value.rbegin(); it != value.rend(); ++it) {
+        int product = (*it - '0') * multiplier + carry;
+        result.push_back(static_cast<char>('0' + (product % 10)));
+        carry = product / 10;
+    }
+
+    while (carry > 0) {
+        result.push_back(static_cast<char>('0' + (carry % 10)));
+        carry /= 10;
+    }
+
+    std::reverse(result.begin(), result.end());
+    return trimLeadingZeros(std::move(result));
+}
+
+std::string addToDecimalString(std::string value, int addend) {
+    value = trimLeadingZeros(std::move(value));
+
+    int carry = addend;
+    for (auto it = value.rbegin(); it != value.rend() && carry > 0; ++it) {
+        int sum = (*it - '0') + carry;
+        *it = static_cast<char>('0' + (sum % 10));
+        carry = sum / 10;
+    }
+
+    while (carry > 0) {
+        value.insert(value.begin(), static_cast<char>('0' + (carry % 10)));
+        carry /= 10;
+    }
+
+    return trimLeadingZeros(std::move(value));
+}
+
+std::string literalDigitsToDecimal(std::string_view digits, int base) {
+    std::string result = "0";
+    for (char c : digits) {
+        result = multiplyDecimalString(std::move(result), base);
+        result = addToDecimalString(std::move(result), digitValue(c));
+    }
+    return trimLeadingZeros(std::move(result));
+}
+
 std::string integerMagnitudeLimit(TypeKind kind, bool negated) {
     switch (kind) {
         case TypeKind::INT8:
@@ -151,8 +248,7 @@ std::string integerMagnitudeLimit(TypeKind kind, bool negated) {
         case TypeKind::INT32:
             return negated ? "2147483648" : "2147483647";
         case TypeKind::INT64:
-            return negated ? "9223372036854775808"
-                           : "9223372036854775807";
+            return negated ? "9223372036854775808" : "9223372036854775807";
         case TypeKind::UINT8:
             return "255";
         case TypeKind::UINT16:
@@ -169,28 +265,45 @@ std::string integerMagnitudeLimit(TypeKind kind, bool negated) {
 std::expected<Type, std::string> intLiteralType(const std::string& value,
                                                 const Type* expected,
                                                 bool negated) {
-    const std::string digits = integerDigits(value);
-    const std::string suffix = integerSuffix(value);
+    auto parsed = parseIntLiteral(value);
+    if (!parsed) return std::unexpected(parsed.error());
 
     TypeKind kind = TypeKind::INT32;
-    if (!suffix.empty()) {
-        auto suffix_kind = integerSuffixKind(suffix);
-        if (!suffix_kind) {
-            return std::unexpected("invalid integer literal suffix '" + suffix +
-                                   "'");
-        }
-        kind = *suffix_kind;
+    if (!parsed->suffix.empty()) {
+        kind = *integerSuffixKind(parsed->suffix);
     } else if (expected != nullptr && isInteger(*expected)) {
         kind = expected->kind;
     }
 
-    if (!decimalLessEqual(digits, integerMagnitudeLimit(kind, negated))) {
+    std::string magnitude =
+        literalDigitsToDecimal(parsed->digits, parsed->base);
+    if (!decimalLessEqual(magnitude, integerMagnitudeLimit(kind, negated))) {
         return std::unexpected("integer literal '" + value +
                                "' is out of range for " +
                                typeToString(makePrimitive(kind)));
     }
 
     return makePrimitive(kind);
+}
+
+std::expected<std::size_t, std::string> parseArraySizeLiteral(
+    const std::string& value) {
+    auto parsed = parseIntLiteral(value);
+    if (!parsed) return std::unexpected(parsed.error());
+
+    std::string magnitude =
+        literalDigitsToDecimal(parsed->digits, parsed->base);
+    std::string limit =
+        std::to_string(std::numeric_limits<std::size_t>::max());
+    if (!decimalLessEqual(magnitude, limit)) {
+        return std::unexpected("array size is too large");
+    }
+
+    std::size_t result = 0;
+    for (char c : trimLeadingZeros(std::move(magnitude))) {
+        result = result * 10 + static_cast<std::size_t>(c - '0');
+    }
+    return result;
 }
 
 Type floatLiteralType(const std::string& value, const Type* expected) {
@@ -202,7 +315,8 @@ Type floatLiteralType(const std::string& value, const Type* expected) {
 
 bool isBuiltinFunctionName(const std::string& name) {
     return name == "print" || name == "input" || name == "len" ||
-           name == "exit" || name == "panic";
+           name == "exit" || name == "panic" || name == "assert" ||
+           name == "code" || name == "char_from";
 }
 
 bool isExplicitCastAllowed(const Type& from, const Type& to) {
@@ -210,10 +324,86 @@ bool isExplicitCastAllowed(const Type& from, const Type& to) {
     if (typeEquals(from, to)) return true;
 
     if (isArithmetic(from) && isArithmetic(to)) return true;
+    if (isArithmetic(from) && isString(to)) return true;
+    if (isString(from) && isArithmetic(to)) return true;
     if (isBool(from) && isInteger(to)) return true;
     if (isInteger(from) && isBool(to)) return true;
 
     return false;
+}
+
+const StructSymbol* findStructForType(const Scope& scope, const Type& type) {
+    if (type.kind != TypeKind::STRUCT) return nullptr;
+
+    const std::string& struct_name =
+        std::get<StructTypeInfo>(type.data).struct_name;
+    auto parts = splitQualifiedName(struct_name);
+    if (parts.empty()) return nullptr;
+
+    auto found = scope.findByPath(parts);
+    if (!found) return nullptr;
+
+    if (auto structure = std::get_if<const StructSymbol*>(&found.value())) {
+        return *structure;
+    }
+
+    return nullptr;
+}
+
+bool isEqualityComparableType(const Type& type, const Scope& scope,
+                              std::unordered_set<std::string>& visiting) {
+    if (type.kind == TypeKind::ERROR) return true;
+
+    if (isArithmetic(type) || isBool(type) || type.kind == TypeKind::CHAR ||
+        isString(type)) {
+        return true;
+    }
+
+    if (type.kind == TypeKind::ARRAY) {
+        const auto& array = std::get<ArrayTypeInfo>(type.data);
+        return isEqualityComparableType(*array.element_type, scope, visiting);
+    }
+
+    if (type.kind == TypeKind::STRUCT) {
+        const std::string& struct_name =
+            std::get<StructTypeInfo>(type.data).struct_name;
+        if (!visiting.insert(struct_name).second) return false;
+
+        const StructSymbol* structure = findStructForType(scope, type);
+        if (structure == nullptr) {
+            visiting.erase(struct_name);
+            return false;
+        }
+
+        for (const auto& [field_name, field_type] : structure->fields) {
+            (void)field_name;
+            if (!isEqualityComparableType(field_type, scope, visiting)) {
+                visiting.erase(struct_name);
+                return false;
+            }
+        }
+
+        visiting.erase(struct_name);
+        return true;
+    }
+
+    return false;
+}
+
+bool canCompareEquality(const Type& left, const Type& right,
+                        const Scope& scope) {
+    if (left.kind == TypeKind::ERROR || right.kind == TypeKind::ERROR) {
+        return true;
+    }
+
+    if (isArithmetic(left) && isArithmetic(right)) {
+        return getCommonType(left, right).has_value();
+    }
+
+    if (!typeEquals(left, right)) return false;
+
+    std::unordered_set<std::string> visiting;
+    return isEqualityComparableType(left, scope, visiting);
 }
 
 bool isComparisonOp(TokenType op) {
@@ -241,9 +431,11 @@ std::expected<TypedProgram, std::vector<std::string>> Semantic::analyze() {
 
     auto mains = m_global->findFunctions("main");
     if (mains.empty()) {
-        m_errors.push_back(m_filename + ":1:1: error: function 'main' is not defined");
+        m_errors.push_back(m_filename +
+                           ":1:1: error: function 'main' is not defined");
     } else if (mains.size() != 1) {
-        m_errors.push_back(m_filename + ":1:1: error: function 'main' cannot be overloaded");
+        m_errors.push_back(m_filename +
+                           ":1:1: error: function 'main' cannot be overloaded");
     } else {
         const FunctionSignature* main = mains.front();
         if (!main->param_types.empty()) {
@@ -306,24 +498,15 @@ std::expected<Type, std::string> Semantic::resolveTypeExpr(
             },
             [&](const std::unique_ptr<Parser::ArrayType>& array)
                 -> std::expected<Type, std::string> {
-                std::size_t size = 0;
-                try {
-                    std::size_t consumed = 0;
-                    size = std::stoull(array->size, &consumed);
-                    if (consumed != array->size.size()) {
-                        return std::unexpected("array size must be an integer literal");
-                    }
-                } catch (const std::exception&) {
-                    return std::unexpected("invalid array size '" + array->size +
-                                           "'");
-                }
+                auto size = parseArraySizeLiteral(array->size);
+                if (!size) return std::unexpected(size.error());
 
                 auto element = resolveTypeExpr(array->element, scope);
                 if (!element) return std::unexpected(element.error());
                 if (element->kind == TypeKind::VOID) {
                     return std::unexpected("array element type cannot be void");
                 }
-                return makeArray(size, *element);
+                return makeArray(*size, *element);
             },
         },
         te.node);
@@ -362,9 +545,10 @@ void Semantic::collectTopLevel(const Parser::Program& p, Scope& scope) {
                                     .qualified_name = std::move(qualified),
                                     .fields = {},
                                     .loc = decl.loc})) {
-                                error(decl.loc,
-                                      "symbol '" + st->name +
-                                          "' is already declared in this scope");
+                                error(
+                                    decl.loc,
+                                    "symbol '" + st->name +
+                                        "' is already declared in this scope");
                             }
                         },
                         [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
@@ -372,23 +556,26 @@ void Semantic::collectTopLevel(const Parser::Program& p, Scope& scope) {
                             Scope* raw_scope = ns_scope.get();
                             if (!target.declareNamespace(ns->name,
                                                          std::move(ns_scope))) {
-                                error(decl.loc,
-                                      "symbol '" + ns->name +
-                                          "' is already declared in this scope");
+                                error(
+                                    decl.loc,
+                                    "symbol '" + ns->name +
+                                        "' is already declared in this scope");
                                 return;
                             }
                             predeclare(ns->declarations, *raw_scope,
                                        appendName(path, ns->name));
                         },
-                        [&](const std::unique_ptr<Parser::TypeAliasDecl>& alias) {
-                            if (!target.declareTypeAlias(TypeAliasSymbol{
-                                    .name = alias->name,
-                                    .target_type = makeError(),
-                                    .decl = alias.get(),
-                                    .loc = decl.loc})) {
-                                error(decl.loc,
-                                      "symbol '" + alias->name +
-                                          "' is already declared in this scope");
+                        [&](const std::unique_ptr<Parser::TypeAliasDecl>&
+                                alias) {
+                            if (!target.declareTypeAlias(
+                                    TypeAliasSymbol{.name = alias->name,
+                                                    .target_type = makeError(),
+                                                    .decl = alias.get(),
+                                                    .loc = decl.loc})) {
+                                error(
+                                    decl.loc,
+                                    "symbol '" + alias->name +
+                                        "' is already declared in this scope");
                             }
                         },
                         [&](const std::unique_ptr<Parser::ImplDecl>&) {},
@@ -403,25 +590,24 @@ void Semantic::collectTopLevel(const Parser::Program& p, Scope& scope) {
 }
 
 void Semantic::collectDecl(const Parser::Decl& d, Scope& scope) {
-    std::visit(
-        overloaded{
-            [&](const std::unique_ptr<Parser::FunctionDecl>& fn) {
-                collectFunction(*fn, scope, d.loc);
-            },
-            [&](const std::unique_ptr<Parser::StructDecl>& st) {
-                collectStruct(*st, scope, d.loc);
-            },
-            [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
-                collectNamespace(*ns, scope, d.loc);
-            },
-            [&](const std::unique_ptr<Parser::TypeAliasDecl>& alias) {
-                collectTypeAlias(*alias, scope, d.loc);
-            },
-            [&](const std::unique_ptr<Parser::ImplDecl>& impl) {
-                collectImpl(*impl, scope, d.loc);
-            },
-        },
-        d.node);
+    std::visit(overloaded{
+                   [&](const std::unique_ptr<Parser::FunctionDecl>& fn) {
+                       collectFunction(*fn, scope, d.loc);
+                   },
+                   [&](const std::unique_ptr<Parser::StructDecl>& st) {
+                       collectStruct(*st, scope, d.loc);
+                   },
+                   [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
+                       collectNamespace(*ns, scope, d.loc);
+                   },
+                   [&](const std::unique_ptr<Parser::TypeAliasDecl>& alias) {
+                       collectTypeAlias(*alias, scope, d.loc);
+                   },
+                   [&](const std::unique_ptr<Parser::ImplDecl>& impl) {
+                       collectImpl(*impl, scope, d.loc);
+                   },
+               },
+               d.node);
 }
 
 void Semantic::collectStruct(const Parser::StructDecl& s, Scope& scope,
@@ -442,8 +628,8 @@ void Semantic::collectStruct(const Parser::StructDecl& s, Scope& scope,
             continue;
         }
         if (field_type->kind == TypeKind::VOID) {
-            error(field.type.loc, "field '" + field.name +
-                                      "' cannot have type void");
+            error(field.type.loc,
+                  "field '" + field.name + "' cannot have type void");
             fields.emplace_back(field.name, makeError());
             continue;
         }
@@ -452,7 +638,8 @@ void Semantic::collectStruct(const Parser::StructDecl& s, Scope& scope,
     }
 
     if (!scope.defineStruct(s.name, std::move(fields))) {
-        error(loc, "internal error: struct '" + s.name + "' was not predeclared");
+        error(loc,
+              "internal error: struct '" + s.name + "' was not predeclared");
     }
 }
 
@@ -464,8 +651,7 @@ void Semantic::collectTypeAlias(const Parser::TypeAliasDecl& ta, Scope& scope,
         return;
     }
     if (target->kind == TypeKind::VOID) {
-        error(ta.type.loc, "type alias '" + ta.name +
-                              "' cannot target void");
+        error(ta.type.loc, "type alias '" + ta.name + "' cannot target void");
         return;
     }
 
@@ -505,8 +691,8 @@ void Semantic::collectFunction(const Parser::FunctionDecl& fn, Scope& scope,
             error(param.type.loc, param_type.error());
             param_types.push_back(makeError());
         } else if (param_type->kind == TypeKind::VOID) {
-            error(param.type.loc, "parameter '" + param.name +
-                                      "' cannot have type void");
+            error(param.type.loc,
+                  "parameter '" + param.name + "' cannot have type void");
             param_types.push_back(makeError());
         } else {
             param_types.push_back(*param_type);
@@ -537,8 +723,9 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
     const auto* structure = scope.findLocalStruct(impl.struct_name);
     if (structure == nullptr) {
         if (scope.findStruct(impl.struct_name) != nullptr) {
-            error(loc, "impl for struct '" + impl.struct_name +
-                           "' must be declared in the same scope as the struct");
+            error(loc,
+                  "impl for struct '" + impl.struct_name +
+                      "' must be declared in the same scope as the struct");
         } else {
             error(loc, "impl target struct '" + impl.struct_name +
                            "' is not declared");
@@ -547,14 +734,16 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
     }
 
     if (!m_impl_structs.insert(structure->qualified_name).second) {
-        error(loc, "duplicate impl for struct '" + structure->qualified_name + "'");
+        error(loc,
+              "duplicate impl for struct '" + structure->qualified_name + "'");
         return;
     }
 
     Type self_type = makeStruct(structure->qualified_name);
     for (const auto& method : impl.methods) {
         if (method->params.empty()) {
-            error(loc, "method '" + method->name + "' must have self parameter");
+            error(loc,
+                  "method '" + method->name + "' must have self parameter");
             continue;
         }
 
@@ -577,8 +766,8 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
                 error(param.type.loc, param_type.error());
                 param_types.push_back(makeError());
             } else if (param_type->kind == TypeKind::VOID) {
-                error(param.type.loc, "parameter '" + param.name +
-                                          "' cannot have type void");
+                error(param.type.loc,
+                      "parameter '" + param.name + "' cannot have type void");
                 param_types.push_back(makeError());
             } else {
                 param_types.push_back(*param_type);
@@ -600,29 +789,28 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
                               .decl = method.get()};
 
         if (!scope.declareFunction(std::move(sig))) {
-            error(loc, "duplicate method overload '" + structure->name + "::" +
-                           method->name + "'");
+            error(loc, "duplicate method overload '" + structure->name +
+                           "::" + method->name + "'");
         }
     }
 }
 
 void Semantic::analyzeProgram() {
     for (const auto& decl : m_program.declarations) {
-        std::visit(
-            overloaded{
-                [&](const std::unique_ptr<Parser::FunctionDecl>& fn) {
-                    analyzeFunction(*fn, *m_global);
-                },
-                [&](const std::unique_ptr<Parser::StructDecl>&) {},
-                [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
-                    analyzeNamespace(*ns);
-                },
-                [&](const std::unique_ptr<Parser::TypeAliasDecl>&) {},
-                [&](const std::unique_ptr<Parser::ImplDecl>& impl) {
-                    analyzeImpl(*impl);
-                },
-            },
-            decl.node);
+        std::visit(overloaded{
+                       [&](const std::unique_ptr<Parser::FunctionDecl>& fn) {
+                           analyzeFunction(*fn, *m_global);
+                       },
+                       [&](const std::unique_ptr<Parser::StructDecl>&) {},
+                       [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
+                           analyzeNamespace(*ns);
+                       },
+                       [&](const std::unique_ptr<Parser::TypeAliasDecl>&) {},
+                       [&](const std::unique_ptr<Parser::ImplDecl>& impl) {
+                           analyzeImpl(*impl);
+                       },
+                   },
+                   decl.node);
     }
 }
 
@@ -656,7 +844,8 @@ void Semantic::analyzeNamespace(const Parser::NamespaceDecl& ns) {
 }
 
 void Semantic::analyzeImpl(const Parser::ImplDecl& impl) {
-    for (const auto& method : impl.methods) analyzeFunction(*method, *m_current_scope);
+    for (const auto& method : impl.methods)
+        analyzeFunction(*method, *m_current_scope);
 }
 
 void Semantic::analyzeFunction(const Parser::FunctionDecl& fn, Scope& parent) {
@@ -670,11 +859,10 @@ void Semantic::analyzeFunction(const Parser::FunctionDecl& fn, Scope& parent) {
             type = makeError();
         }
 
-        if (!fn_scope.declareVariable(
-                VariableSymbol{.name = param.name,
-                               .type = type,
-                               .is_mutable = false,
-                               .loc = param.loc})) {
+        if (!fn_scope.declareVariable(VariableSymbol{.name = param.name,
+                                                     .type = type,
+                                                     .is_mutable = false,
+                                                     .loc = param.loc})) {
             error(param.loc, "duplicate parameter '" + param.name + "'");
         }
         recordDeclType(&param, type);
@@ -749,15 +937,16 @@ void Semantic::analyzeLet(const Parser::LetStmt& l, Parser::NodeLocation loc) {
             error(l.type->loc, resolved.error());
             init_type = checkExpr(l.init);
         } else if (resolved->kind == TypeKind::VOID) {
-            error(l.type->loc, "variable '" + l.name +
-                                   "' cannot have type void");
+            error(l.type->loc,
+                  "variable '" + l.name + "' cannot have type void");
             init_type = checkExpr(l.init);
         } else {
             declared = *resolved;
             init_type = checkExpr(l.init, &declared);
             if (!isConvertibleTo(init_type, declared)) {
-                error(loc, "cannot initialize variable '" + l.name + "' of type " +
-                               typeToString(declared) + " with value of type " +
+                error(loc, "cannot initialize variable '" + l.name +
+                               "' of type " + typeToString(declared) +
+                               " with value of type " +
                                typeToString(init_type));
             }
         }
@@ -775,7 +964,8 @@ void Semantic::analyzeLet(const Parser::LetStmt& l, Parser::NodeLocation loc) {
                            .type = declared,
                            .is_mutable = l.is_mutable,
                            .loc = loc})) {
-        error(loc, "variable '" + l.name + "' is already declared in this scope");
+        error(loc,
+              "variable '" + l.name + "' is already declared in this scope");
     }
 
     recordDeclType(&l, declared);
@@ -804,7 +994,8 @@ void Semantic::analyzeIf(const Parser::IfStmt& i, Parser::NodeLocation loc) {
     if (i.else_branch) analyzeStmt(**i.else_branch);
 }
 
-void Semantic::analyzeWhile(const Parser::WhileStmt& w, Parser::NodeLocation loc) {
+void Semantic::analyzeWhile(const Parser::WhileStmt& w,
+                            Parser::NodeLocation loc) {
     Type cond = checkExpr(w.condition);
     if (cond.kind != TypeKind::ERROR && !isBool(cond)) {
         error(loc, "while condition must have type bool");
@@ -822,7 +1013,8 @@ void Semantic::analyzeReturn(const Parser::ReturnStmt& r,
         if (m_current_return_type.kind == TypeKind::VOID) {
             error(loc, "void function cannot return a value");
         } else if (!isConvertibleTo(value_type, m_current_return_type)) {
-            error(loc, "cannot return value of type " + typeToString(value_type) +
+            error(loc, "cannot return value of type " +
+                           typeToString(value_type) +
                            " from function returning " +
                            typeToString(m_current_return_type));
         }
@@ -843,7 +1035,8 @@ void Semantic::analyzeContinue(Parser::NodeLocation loc) {
     if (m_loop_depth == 0) error(loc, "continue outside loop");
 }
 
-void Semantic::analyzeExprStmt(const Parser::ExprStmt& e, Parser::NodeLocation) {
+void Semantic::analyzeExprStmt(const Parser::ExprStmt& e,
+                               Parser::NodeLocation) {
     checkExpr(e.expression);
 }
 
@@ -861,10 +1054,15 @@ Type Semantic::checkExpr(const Parser::Expr& e, const Type* expected) {
             [&](const Parser::FloatLiteral& lit) {
                 return floatLiteralType(lit.value, expected);
             },
+            [&](const Parser::CharLiteral&) {
+                return makePrimitive(TypeKind::CHAR);
+            },
             [&](const Parser::StringLiteral&) {
                 return makePrimitive(TypeKind::STRING);
             },
-            [&](const Parser::BoolLiteral&) { return makePrimitive(TypeKind::BOOL); },
+            [&](const Parser::BoolLiteral&) {
+                return makePrimitive(TypeKind::BOOL);
+            },
             [&](const Parser::Identifier& id) {
                 return checkIdentifier(id, e.loc);
             },
@@ -902,7 +1100,8 @@ Type Semantic::checkExpr(const Parser::Expr& e, const Type* expected) {
     return result;
 }
 
-Type Semantic::checkBinary(const Parser::BinaryExpr& b, Parser::NodeLocation loc) {
+Type Semantic::checkBinary(const Parser::BinaryExpr& b,
+                           Parser::NodeLocation loc) {
     Type left = checkExpr(b.left);
     Type right = checkExpr(b.right);
     if (left.kind == TypeKind::ERROR || right.kind == TypeKind::ERROR) {
@@ -945,8 +1144,7 @@ Type Semantic::checkBinary(const Parser::BinaryExpr& b, Parser::NodeLocation loc
     }
 
     if (b.op == TokenType::EQUAL || b.op == TokenType::NOT_EQUAL) {
-        if (!typeEquals(left, right) && !isConvertibleTo(left, right) &&
-            !isConvertibleTo(right, left)) {
+        if (!canCompareEquality(left, right, *m_current_scope)) {
             error(loc, "cannot compare " + typeToString(left) + " and " +
                            typeToString(right));
             return makeError();
@@ -984,7 +1182,8 @@ Type Semantic::checkBinary(const Parser::BinaryExpr& b, Parser::NodeLocation loc
 Type Semantic::checkUnary(const Parser::UnaryExpr& u, Parser::NodeLocation loc,
                           const Type* expected) {
     if (u.op == TokenType::MINUS) {
-        if (const auto* literal = std::get_if<Parser::IntLiteral>(&u.operand.node)) {
+        if (const auto* literal =
+                std::get_if<Parser::IntLiteral>(&u.operand.node)) {
             auto type = intLiteralType(literal->value, expected, true);
             if (!type) {
                 error(u.operand.loc, type.error());
@@ -1108,7 +1307,8 @@ Type Semantic::checkMethodCall(const Parser::MethodCall& c,
     return makeError();
 }
 
-Type Semantic::checkIndex(const Parser::IndexExpr& ix, Parser::NodeLocation loc) {
+Type Semantic::checkIndex(const Parser::IndexExpr& ix,
+                          Parser::NodeLocation loc) {
     Type object = checkExpr(ix.object);
     Type index = checkExpr(ix.index);
     if (object.kind == TypeKind::ERROR || index.kind == TypeKind::ERROR) {
@@ -1145,9 +1345,11 @@ Type Semantic::checkFieldAccess(const Parser::FieldAccess& fa,
     if (struct_name.find("::") == std::string::npos) {
         structure = m_current_scope->findStruct(struct_name);
     } else {
-        auto found = m_current_scope->findByPath(splitQualifiedName(struct_name));
+        auto found =
+            m_current_scope->findByPath(splitQualifiedName(struct_name));
         if (found) {
-            if (auto symbol = std::get_if<const StructSymbol*>(&found.value())) {
+            if (auto symbol =
+                    std::get_if<const StructSymbol*>(&found.value())) {
                 structure = *symbol;
             }
         }
@@ -1192,7 +1394,8 @@ Type Semantic::checkArrayLit(const Parser::ArrayLiteral& al,
     if (expected != nullptr && expected->kind == TypeKind::ARRAY) {
         const auto& expected_array = std::get<ArrayTypeInfo>(expected->data);
         if (al.elements.size() != expected_array.size) {
-            error(loc, "array literal has " + std::to_string(al.elements.size()) +
+            error(loc, "array literal has " +
+                           std::to_string(al.elements.size()) +
                            " elements but expected " +
                            std::to_string(expected_array.size));
             return makeError();
@@ -1201,10 +1404,10 @@ Type Semantic::checkArrayLit(const Parser::ArrayLiteral& al,
         for (const auto& element : al.elements) {
             Type actual = checkExpr(element, expected_array.element_type.get());
             if (!isConvertibleTo(actual, *expected_array.element_type)) {
-                error(element.loc, "array element of type " +
-                                       typeToString(actual) +
-                                       " cannot initialize element of type " +
-                                       typeToString(*expected_array.element_type));
+                error(element.loc,
+                      "array element of type " + typeToString(actual) +
+                          " cannot initialize element of type " +
+                          typeToString(*expected_array.element_type));
                 return makeError();
             }
         }
@@ -1259,7 +1462,8 @@ Type Semantic::checkStructLit(const Parser::StructLiteral& sl,
         }
 
         if (!initialized.insert(field.name).second) {
-            error(field.loc, "duplicate field initializer '" + field.name + "'");
+            error(field.loc,
+                  "duplicate field initializer '" + field.name + "'");
             continue;
         }
 
@@ -1298,7 +1502,8 @@ Type Semantic::checkIdentifier(const Parser::Identifier& id,
         error(loc, "function '" + joinName(id.parts) +
                        "' cannot be used as a value");
     } else if (std::holds_alternative<const StructSymbol*>(found.value())) {
-        error(loc, "type '" + joinName(id.parts) + "' cannot be used as a value");
+        error(loc,
+              "type '" + joinName(id.parts) + "' cannot be used as a value");
     } else if (std::holds_alternative<const TypeAliasSymbol*>(found.value())) {
         error(loc, "type alias '" + joinName(id.parts) +
                        "' cannot be used as a value");
@@ -1348,6 +1553,51 @@ std::optional<Type> Semantic::tryBuiltinCall(const Parser::CallExpr& c,
         return makePrimitive(TypeKind::INT64);
     }
 
+    if (name == "code") {
+        if (c.args.size() != 1) {
+            error(loc, "code expects 1 argument");
+            return makeError();
+        }
+
+        Type arg = checkExpr(c.args[0]);
+        if (arg.kind != TypeKind::CHAR && arg.kind != TypeKind::ERROR) {
+            error(loc, "code argument must be char");
+            return makeError();
+        }
+
+        return makePrimitive(TypeKind::INT64);
+    }
+
+    if (name == "char_from") {
+        if (c.args.size() != 1) {
+            error(loc, "char_from expects 1 argument");
+            return makeError();
+        }
+
+        Type arg = checkExpr(c.args[0]);
+        if (!isInteger(arg) && arg.kind != TypeKind::ERROR) {
+            error(loc, "char_from argument must be integer");
+            return makeError();
+        }
+
+        return makePrimitive(TypeKind::CHAR);
+    }
+
+    if (name == "assert") {
+        if (c.args.size() != 1) {
+            error(loc, "assert expects 1 argument");
+            return makeError();
+        }
+
+        Type arg = checkExpr(c.args[0]);
+        if (!isBool(arg) && arg.kind != TypeKind::ERROR) {
+            error(loc, "assert argument must be bool");
+            return makeError();
+        }
+
+        return makePrimitive(TypeKind::VOID);
+    }
+
     if (name == "exit") {
         if (c.args.size() != 1) {
             error(loc, "exit expects 1 argument");
@@ -1389,22 +1639,23 @@ bool Semantic::isLvalue(const Parser::Expr& e) {
 }
 
 bool Semantic::isMutableLvalue(const Parser::Expr& e) {
-    return std::visit(
-        overloaded{
-            [&](const Parser::Identifier& id) {
-                if (id.parts.size() != 1) return false;
-                const auto* variable = m_current_scope->findVariable(id.parts[0]);
-                return variable != nullptr && variable->is_mutable;
-            },
-            [&](const std::unique_ptr<Parser::IndexExpr>& ix) {
-                return isMutableLvalue(ix->object);
-            },
-            [&](const std::unique_ptr<Parser::FieldAccess>& fa) {
-                return isMutableLvalue(fa->object);
-            },
-            [&](const auto&) { return false; },
-        },
-        e.node);
+    return std::visit(overloaded{
+                          [&](const Parser::Identifier& id) {
+                              if (id.parts.size() != 1) return false;
+                              const auto* variable =
+                                  m_current_scope->findVariable(id.parts[0]);
+                              return variable != nullptr &&
+                                     variable->is_mutable;
+                          },
+                          [&](const std::unique_ptr<Parser::IndexExpr>& ix) {
+                              return isMutableLvalue(ix->object);
+                          },
+                          [&](const std::unique_ptr<Parser::FieldAccess>& fa) {
+                              return isMutableLvalue(fa->object);
+                          },
+                          [&](const auto&) { return false; },
+                      },
+                      e.node);
 }
 
 bool Semantic::allPathsReturn(const Parser::Block& b) {
@@ -1429,7 +1680,9 @@ bool Semantic::allPathsReturn(const Parser::Block& b) {
         [&](const Parser::Stmt& stmt) -> bool {
         return std::visit(
             overloaded{
-                [&](const std::unique_ptr<Parser::ReturnStmt>&) { return true; },
+                [&](const std::unique_ptr<Parser::ReturnStmt>&) {
+                    return true;
+                },
                 [&](const std::unique_ptr<Parser::ExprStmt>& expr_stmt) {
                     return exprTerminates(expr_stmt->expression);
                 },
@@ -1454,7 +1707,8 @@ bool Semantic::allPathsReturn(const Parser::Block& b) {
 
 void Semantic::error(Parser::NodeLocation loc, const std::string& msg) {
     std::ostringstream out;
-    out << m_filename << ':' << loc.line << ':' << loc.col << ": error: " << msg;
+    out << m_filename << ':' << loc.line << ':' << loc.col
+        << ": error: " << msg;
     m_errors.push_back(out.str());
 }
 

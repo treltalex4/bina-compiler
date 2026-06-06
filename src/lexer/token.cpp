@@ -10,6 +10,8 @@ std::string tokenTypeToString(TokenType type) {
             return "FLOAT_LIT";
         case TokenType::STRING_LIT:
             return "STRING_LIT";
+        case TokenType::CHAR_LIT:
+            return "CHAR_LIT";
         case TokenType::BOOL_TRUE:
             return "BOOL_TRUE";
         case TokenType::BOOL_FALSE:
@@ -54,6 +56,8 @@ std::string tokenTypeToString(TokenType type) {
             return "KW_EXIT";
         case TokenType::KW_PANIC:
             return "KW_PANIC";
+        case TokenType::KW_ASSERT:
+            return "KW_ASSERT";
         case TokenType::KW_LEN:
             return "KW_LEN";
         case TokenType::PLUS:
@@ -137,6 +141,7 @@ std::optional<TokenType> getKeywordType(const std::string& word) {
         {"input", TokenType::KW_INPUT},
         {"exit", TokenType::KW_EXIT},
         {"panic", TokenType::KW_PANIC},
+        {"assert", TokenType::KW_ASSERT},
         {"len", TokenType::KW_LEN},
         {"true", TokenType::BOOL_TRUE},
         {"false", TokenType::BOOL_FALSE},

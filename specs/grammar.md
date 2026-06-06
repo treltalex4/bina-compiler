@@ -43,7 +43,7 @@ comment    = "//" { any_char_except_newline } "\n" ;
 fn       let      mut      return   if       else
 while    break    continue struct   namespace type
 cast     true     false    print    input     exit
-panic    len      void     impl
+panic    assert   len      void     impl
 ```
 
 ### Идентификаторы
@@ -60,8 +60,27 @@ DIGIT  = "0".."9" ;
 ### Числовые литералы
 
 ```ebnf
-INT_LIT   = DIGIT { DIGIT } [ INT_SUFFIX ] ;
-FLOAT_LIT = DIGIT { DIGIT } "." DIGIT { DIGIT } [ FLOAT_SUFFIX ] ;
+INT_LIT = DEC_INT_LIT
+        | HEX_INT_LIT
+        | BIN_INT_LIT ;
+
+DEC_INT_LIT = DIGIT { DIGIT } [ INT_SUFFIX ] ;
+HEX_INT_LIT = "0" ( "x" | "X" ) HEX_DIGIT { HEX_DIGIT } [ INT_SUFFIX ] ;
+BIN_INT_LIT = "0" ( "b" | "B" ) BIN_DIGIT { BIN_DIGIT } [ INT_SUFFIX ] ;
+
+FLOAT_LIT = DEC_FLOAT_LIT
+          | SPECIAL_FLOAT_LIT ;
+
+DEC_FLOAT_LIT =
+      DIGIT { DIGIT } "." DIGIT { DIGIT } [ EXP_PART ] [ FLOAT_SUFFIX ]
+    | DIGIT { DIGIT } EXP_PART [ FLOAT_SUFFIX ] ;
+
+EXP_PART = ( "e" | "E" ) [ "+" | "-" ] DIGIT { DIGIT } ;
+
+SPECIAL_FLOAT_LIT = "inf" | "nan" | "NaN" ;
+
+HEX_DIGIT = DIGIT | "a".."f" | "A".."F" ;
+BIN_DIGIT = "0" | "1" ;
 
 INT_SUFFIX   = "i8" | "i16" | "i32" | "i64"
              | "u8" | "u16" | "u32" | "u64" ;
@@ -69,7 +88,8 @@ INT_SUFFIX   = "i8" | "i16" | "i32" | "i64"
 FLOAT_SUFFIX = "f32" | "f64" ;
 ```
 
-Примеры: `42`, `42i32`, `3.14`, `3.14f64`, `255u8`.
+Примеры: `42`, `42i32`, `0xFF`, `0b1010i32`, `3.14`,
+`3.14f64`, `1e6`, `1.5e-10f32`, `inf`, `-inf`, `nan`.
 
 Литерал без суффикса имеет тип, выводимый из контекста;
 при невозможности вывода — `int32` для целых, `float64` для вещественных.
@@ -87,6 +107,22 @@ escape_seq  = "\\" ( "n" | "t" | "r" | '"' | "\\" ) ;
 
 Строки хранятся в UTF-8. Поддерживаемые escape-последовательности:
 `\n`, `\t`, `\r`, `\"`, `\\`.
+
+### Символьные литералы
+
+```ebnf
+CHAR_LIT = "'" char_value "'" ;
+
+char_value = any_unicode_scalar_except_backslash_and_single_quote
+           | char_escape_seq
+           | unicode_escape ;
+
+char_escape_seq = "\\" ( "n" | "t" | "r" | "'" | "\"" | "\\" ) ;
+unicode_escape  = "\\u{" HEX_DIGIT { HEX_DIGIT } "}" ;
+```
+
+Символьный литерал хранит один Unicode scalar value. Примеры:
+`'a'`, `'\n'`, `'\''`, `'\u{1F600}'`.
 
 ### Булевы литералы
 
@@ -213,6 +249,7 @@ builtin_type = "int8"  | "int16"  | "int32"  | "int64"
              | "uint8" | "uint16" | "uint32" | "uint64"
              | "float32" | "float64"
              | "bool"
+             | "char"
              | "string"
              | "int" ;
 
@@ -439,6 +476,9 @@ qualified_name = IDENT { "::" IDENT } ;
 | `print(expr)`         | Вывод значения в stdout                       |
 | `input()`             | Чтение строки из stdin, возвращает `string`   |
 | `len(expr)`           | Длина строки или массива, возвращает `int64`  |
+| `assert(bool_expr)`   | Проверка условия, при `false` runtime error   |
+| `code(char_expr)`     | Unicode-код символа, возвращает `int64`       |
+| `char_from(int_expr)` | Символ по Unicode-коду, возвращает `char`     |
 | `exit(expr)`          | Завершение программы с кодом возврата         |
 | `panic(string_expr)`  | Аварийное завершение с сообщением в stderr    |
 

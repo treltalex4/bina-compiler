@@ -6,6 +6,7 @@ export enum class TokenType {
     // Литералы
     INT_LIT,
     FLOAT_LIT,
+    CHAR_LIT,
     STRING_LIT,
     BOOL_TRUE,
     BOOL_FALSE,
@@ -33,6 +34,7 @@ export enum class TokenType {
     KW_INPUT,
     KW_EXIT,
     KW_PANIC,
+    KW_ASSERT,
     KW_LEN,
 
     // Операторы

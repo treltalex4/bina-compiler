@@ -230,10 +230,10 @@ Expr Parser::parsePostfix() {
                         args.push_back(parseExpression());
                     }
                 }
-                consume(TokenType::RPAREN, "expected ')' after method arguments");
-                auto call = std::make_unique<MethodCall>(
-                    MethodCall{std::move(expr), std::move(field),
-                               std::move(args)});
+                consume(TokenType::RPAREN,
+                        "expected ')' after method arguments");
+                auto call = std::make_unique<MethodCall>(MethodCall{
+                    std::move(expr), std::move(field), std::move(args)});
                 expr = Expr{std::move(call), loc};
             } else {
                 auto fa = std::make_unique<FieldAccess>(
@@ -259,6 +259,11 @@ Expr Parser::parsePrimary() {
         case TokenType::FLOAT_LIT: {
             std::string value = advance().lexeme;
             return Expr{FloatLiteral{std::move(value)}, loc};
+        }
+        case TokenType::CHAR_LIT: {
+            std::uint32_t value =
+                static_cast<std::uint32_t>(std::stoul(advance().lexeme));
+            return Expr{CharLiteral{value}, loc};
         }
         case TokenType::STRING_LIT: {
             std::string value = advance().lexeme;
@@ -286,6 +291,7 @@ Expr Parser::parsePrimary() {
         case TokenType::KW_INPUT:
         case TokenType::KW_EXIT:
         case TokenType::KW_PANIC:
+        case TokenType::KW_ASSERT:
         case TokenType::KW_LEN: {
             Identifier name = parseQualifiedIdent();
 
@@ -342,6 +348,7 @@ Identifier Parser::parseQualifiedIdent() {
         case TokenType::KW_INPUT:
         case TokenType::KW_EXIT:
         case TokenType::KW_PANIC:
+        case TokenType::KW_ASSERT:
         case TokenType::KW_LEN:
             id.parts.push_back(advance().lexeme);
             break;

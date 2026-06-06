@@ -13,6 +13,7 @@ struct NodeLocation {
 // выражения
 struct IntLiteral;
 struct FloatLiteral;
+struct CharLiteral;
 struct StringLiteral;
 struct BoolLiteral;
 struct Identifier;
@@ -58,6 +59,10 @@ struct FloatLiteral {
     std::string value;
 };
 
+struct CharLiteral {
+    std::uint32_t value;
+};
+
 struct StringLiteral {
     std::string value;
 };
@@ -86,8 +91,8 @@ struct NullStmt {};
 
 // выражения
 using ExprNode =
-    std::variant<IntLiteral, FloatLiteral, StringLiteral, BoolLiteral,
-                 Identifier, std::unique_ptr<BinaryExpr>,
+    std::variant<IntLiteral, FloatLiteral, CharLiteral, StringLiteral,
+                 BoolLiteral, Identifier, std::unique_ptr<BinaryExpr>,
                  std::unique_ptr<UnaryExpr>, std::unique_ptr<CallExpr>,
                  std::unique_ptr<IndexExpr>, std::unique_ptr<FieldAccess>,
                  std::unique_ptr<MethodCall>, std::unique_ptr<CastExpr>,

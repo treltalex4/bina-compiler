@@ -16,6 +16,7 @@ enum class TypeKind {
     FLOAT32,
     FLOAT64,
     BOOL,
+    CHAR,
     STRING,
     VOID,
     ARRAY,
