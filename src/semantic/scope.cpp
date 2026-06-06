@@ -10,7 +10,15 @@ namespace {
 std::string indent(int depth) { return std::string(static_cast<std::size_t>(depth) * 2, ' '); }
 
 std::string functionSignatureToString(const FunctionSignature& sig) {
-    std::string result = sig.name + "(";
+    std::string result;
+    if (!sig.enclosing_struct_qname.empty()) {
+        result = sig.enclosing_struct_qname + "::" + sig.name;
+    } else if (!sig.namespace_qname.empty()) {
+        result = sig.namespace_qname + "::" + sig.name;
+    } else {
+        result = sig.name;
+    }
+    result += "(";
     for (std::size_t i = 0; i < sig.param_types.size(); ++i) {
         if (i > 0) result += ", ";
         if (i < sig.param_names.size() && !sig.param_names[i].empty()) {
@@ -20,6 +28,17 @@ std::string functionSignatureToString(const FunctionSignature& sig) {
     }
     result += ") -> " + typeToString(sig.return_type);
     return result;
+}
+
+std::string functionScopeKey(const FunctionSignature& sig) {
+    if (sig.enclosing_struct_qname.empty()) return sig.name;
+
+    const std::size_t sep = sig.enclosing_struct_qname.rfind("::");
+    const std::string short_struct_name =
+        sep == std::string::npos
+            ? sig.enclosing_struct_qname
+            : sig.enclosing_struct_qname.substr(sep + 2);
+    return short_struct_name + "::" + sig.name;
 }
 
 }  // namespace
@@ -38,12 +57,14 @@ bool Scope::declareVariable(VariableSymbol sym) {
 }
 
 bool Scope::declareFunction(FunctionSignature sig) {
-    if (m_variables.contains(sig.name) || m_structs.contains(sig.name) ||
-        m_aliases.contains(sig.name) || m_namespaces.contains(sig.name)) {
+    const std::string key = functionScopeKey(sig);
+
+    if (m_variables.contains(key) || m_structs.contains(key) ||
+        m_aliases.contains(key) || m_namespaces.contains(key)) {
         return false;
     }
 
-    auto& overloads = m_functions[sig.name];
+    auto& overloads = m_functions[key];
     for (const auto& existing : overloads) {
         if (existing.param_types == sig.param_types) return false;
     }

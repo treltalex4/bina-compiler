@@ -31,6 +31,7 @@ class Semantic {
     std::unordered_map<const void*, const FunctionSignature*> m_call_targets;
     std::unordered_set<const TypeAliasSymbol*> m_resolving_aliases;
     std::unordered_set<std::string> m_impl_structs;
+    std::vector<std::string> m_current_namespace;
 
     Scope* m_current_scope = nullptr;
     Type m_current_return_type = makeError();
@@ -53,6 +54,7 @@ class Semantic {
                          Parser::NodeLocation loc);
     void collectImpl(const Parser::ImplDecl& impl, Scope& scope,
                      Parser::NodeLocation loc);
+    void checkRecursiveValueStructs();
 
     void analyzeProgram();
     void analyzeNamespace(const Parser::NamespaceDecl& ns);

@@ -350,6 +350,62 @@ const StructSymbol* findStructForType(const Scope& scope, const Type& type) {
     return nullptr;
 }
 
+const StructSymbol* findStructByQualifiedName(const Scope& scope,
+                                              const std::string& qname) {
+    auto found = scope.findByPath(splitQualifiedName(qname));
+    if (!found) return nullptr;
+
+    if (const auto* structure =
+            std::get_if<const StructSymbol*>(&found.value())) {
+        return *structure;
+    }
+
+    return nullptr;
+}
+
+bool typeHasInfiniteSize(const Type& type, const Scope& scope,
+                         std::unordered_set<std::string>& on_path) {
+    if (type.kind == TypeKind::ARRAY) {
+        const auto& array = std::get<ArrayTypeInfo>(type.data);
+        return typeHasInfiniteSize(*array.element_type, scope, on_path);
+    }
+
+    if (type.kind != TypeKind::STRUCT) return false;
+
+    const std::string& qname =
+        std::get<StructTypeInfo>(type.data).struct_name;
+    if (!on_path.insert(qname).second) return true;
+
+    const StructSymbol* structure = findStructByQualifiedName(scope, qname);
+    if (structure == nullptr) {
+        on_path.erase(qname);
+        return false;
+    }
+
+    for (const auto& [field_name, field_type] : structure->fields) {
+        (void)field_name;
+        if (typeHasInfiniteSize(field_type, scope, on_path)) {
+            on_path.erase(qname);
+            return true;
+        }
+    }
+
+    on_path.erase(qname);
+    return false;
+}
+
+bool structHasInfiniteSize(const StructSymbol& structure, const Scope& scope) {
+    std::unordered_set<std::string> on_path;
+    on_path.insert(structure.qualified_name);
+
+    for (const auto& [field_name, field_type] : structure.fields) {
+        (void)field_name;
+        if (typeHasInfiniteSize(field_type, scope, on_path)) return true;
+    }
+
+    return false;
+}
+
 bool isEqualityComparableType(const Type& type, const Scope& scope,
                               std::unordered_set<std::string>& visiting) {
     if (type.kind == TypeKind::ERROR) return true;
@@ -428,6 +484,7 @@ Semantic::Semantic(const Parser::Program& program, const std::string& filename)
 
 std::expected<TypedProgram, std::vector<std::string>> Semantic::analyze() {
     collectTopLevel(m_program, *m_global);
+    checkRecursiveValueStructs();
 
     auto mains = m_global->findFunctions("main");
     if (mains.empty()) {
@@ -589,6 +646,45 @@ void Semantic::collectTopLevel(const Parser::Program& p, Scope& scope) {
     for (const auto& decl : p.declarations) collectDecl(decl, scope);
 }
 
+void Semantic::checkRecursiveValueStructs() {
+    std::unordered_set<std::string> reported;
+
+    std::function<void(const std::vector<Parser::Decl>&,
+                       std::vector<std::string>)>
+        walk = [&](const std::vector<Parser::Decl>& declarations,
+                   std::vector<std::string> path) {
+            for (const auto& decl : declarations) {
+                std::visit(
+                    overloaded{
+                        [&](const std::unique_ptr<Parser::StructDecl>& st) {
+                            std::string qname =
+                                joinName(appendName(path, st->name));
+                            if (!reported.insert(qname).second) return;
+
+                            const StructSymbol* structure =
+                                findStructByQualifiedName(*m_global, qname);
+                            if (structure == nullptr) return;
+
+                            if (structHasInfiniteSize(*structure,
+                                                      *m_global)) {
+                                error(decl.loc,
+                                      "recursive value struct '" + qname +
+                                          "' has infinite size");
+                            }
+                        },
+                        [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
+                            walk(ns->declarations,
+                                 appendName(path, ns->name));
+                        },
+                        [&](const auto&) {},
+                    },
+                    decl.node);
+            }
+        };
+
+    walk(m_program.declarations, {});
+}
+
 void Semantic::collectDecl(const Parser::Decl& d, Scope& scope) {
     std::visit(overloaded{
                    [&](const std::unique_ptr<Parser::FunctionDecl>& fn) {
@@ -670,7 +766,9 @@ void Semantic::collectNamespace(const Parser::NamespaceDecl& ns, Scope& scope,
         return;
     }
 
+    m_current_namespace.push_back(ns.name);
     for (const auto& decl : ns.declarations) collectDecl(decl, *ns_scope);
+    m_current_namespace.pop_back();
 }
 
 void Semantic::collectFunction(const Parser::FunctionDecl& fn, Scope& scope,
@@ -707,6 +805,8 @@ void Semantic::collectFunction(const Parser::FunctionDecl& fn, Scope& scope,
     }
 
     FunctionSignature sig{.name = fn.name,
+                          .namespace_qname = joinName(m_current_namespace),
+                          .enclosing_struct_qname = "",
                           .param_types = std::move(param_types),
                           .param_names = std::move(param_names),
                           .return_type = *return_type,
@@ -781,7 +881,11 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
             return_type = makeError();
         }
 
-        FunctionSignature sig{.name = structure->name + "::" + method->name,
+        FunctionSignature sig{.name = method->name,
+                              .namespace_qname =
+                                  joinName(m_current_namespace),
+                              .enclosing_struct_qname =
+                                  structure->qualified_name,
                               .param_types = std::move(param_types),
                               .param_names = std::move(param_names),
                               .return_type = *return_type,

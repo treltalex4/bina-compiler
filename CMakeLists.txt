@@ -5,10 +5,9 @@ set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
 
 # Использовать libc++ вместо libstdc++ (нужно для import std)
 set(CMAKE_CXX_FLAGS_INIT "-stdlib=libc++")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-stdlib=libc++")
 
-# Имя проекта и язык
-project(bina LANGUAGES CXX)
+# Имя проекта и языки
+project(bina LANGUAGES C CXX)
 
 # Стандарт C++23 — обязателен по ТЗ
 set(CMAKE_CXX_STANDARD 23)
@@ -20,6 +19,11 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_CXX_MODULE_STD ON)
 
 add_executable(bina src/main.cpp)
+
+add_library(bina_runtime OBJECT runtime/bina_runtime.c)
+target_compile_options(bina_runtime PRIVATE -O2 -Wall -Wextra)
+set_target_properties(bina_runtime PROPERTIES C_STANDARD 99)
+add_dependencies(bina bina_runtime)
 
 target_sources(bina
     PUBLIC
@@ -33,6 +37,8 @@ target_sources(bina
         src/semantic/symbol.cppm
         src/semantic/type.cppm
         src/semantic/overload.cppm
+        src/codegen/codegen.cppm
+        src/driver/driver.cppm
 )
 
 target_sources(bina PRIVATE
@@ -44,9 +50,18 @@ target_sources(bina PRIVATE
     src/semantic/scope.cpp
     src/semantic/type.cpp
     src/semantic/overload.cpp
+    src/codegen/codegen.cpp
+    src/driver/driver.cpp
 )
 
 target_compile_options(bina PRIVATE -Wall -Wextra -Wpedantic)
+target_link_options(bina PRIVATE -stdlib=libc++)
+
+add_custom_command(TARGET bina POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_OBJECTS:bina_runtime>
+        ${CMAKE_BINARY_DIR}/bina_runtime.o
+)
 
 # make run — собрать и запустить
 add_custom_target(run
