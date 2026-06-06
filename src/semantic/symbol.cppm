@@ -18,6 +18,8 @@ struct VariableSymbol {
 
 struct FunctionSignature {
     std::string name;
+    std::string namespace_qname;
+    std::string enclosing_struct_qname;
     std::vector<Type> param_types;
     std::vector<std::string> param_names;
     Type return_type;
