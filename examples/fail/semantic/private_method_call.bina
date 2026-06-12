@@ -1,0 +1,15 @@
+// EXPECT_SEMANTIC_ERROR: private method call
+struct Counter {
+    pub value: int32;
+}
+
+impl Counter {
+    fn hidden(self: Counter) -> int32 {
+        return self.value;
+    }
+}
+
+fn main() -> int {
+    let counter = Counter { value: 1i32 };
+    return counter.hidden();
+}

@@ -1,12 +1,12 @@
 // OK: struct equality and inequality.
 struct Point {
-    x: int32;
-    y: int32;
+    pub x: int32;
+    pub y: int32;
 }
 
 struct Line {
-    a: Point;
-    b: Point;
+    pub a: Point;
+    pub b: Point;
 }
 
 fn main() -> int {

@@ -1,12 +1,12 @@
 // OK: struct declarations, struct literals, field access, and nominal types.
 struct Point {
-    x: float64;
-    y: float64;
+    pub x: float64;
+    pub y: float64;
 }
 
 struct Pair {
-    left: int32;
-    right: int32;
+    pub left: int32;
+    pub right: int32;
 }
 
 fn shift(p: Point, dx: float64, dy: float64) -> Point {

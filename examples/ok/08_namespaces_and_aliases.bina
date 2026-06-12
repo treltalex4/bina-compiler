@@ -4,8 +4,8 @@ type Fahrenheit = float64;
 
 namespace Temp {
     struct Reading {
-        value: Celsius;
-        label: string;
+        pub value: Celsius;
+        pub label: string;
     }
 
     fn to_fahrenheit(c: Celsius) -> Fahrenheit {

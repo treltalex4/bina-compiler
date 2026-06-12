@@ -1,6 +1,6 @@
 // EXPECT_SEMANTIC_ERROR: has no field
 struct Point {
-    x: int32;
+    pub x: int32;
 }
 
 fn main() -> int {

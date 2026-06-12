@@ -326,7 +326,7 @@ void Codegen::emitStructTypes() {
                                  ++i) {
                                 if (i > 0) m_header << ", ";
                                 m_header
-                                    << llvmStoredType(sym->fields[i].second);
+                                    << llvmStoredType(sym->fields[i].type);
                             }
                             m_header << " }\n";
                         },
@@ -1072,7 +1072,7 @@ Codegen::Value Codegen::genStructLit(const Parser::StructLiteral& sl,
     for (const auto& field : sl.fields) {
         const int idx = structFieldIndex(*structure, field.name);
         const Semantic::Type& field_t =
-            structure->fields[static_cast<std::size_t>(idx)].second;
+            structure->fields[static_cast<std::size_t>(idx)].type;
         Value v = genExpr(field.value);
         v = emitConversion(v, field_t, false, field.loc);
 
@@ -1364,7 +1364,7 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
         std::string acc = freshValue();
         m_body << "  " << acc << " = xor i1 true, false\n";
         for (std::size_t i = 0; i < structure->fields.size(); ++i) {
-            const auto& field_t = structure->fields[i].second;
+            const auto& field_t = structure->fields[i].type;
             const std::string lp = freshValue();
             const std::string rp = freshValue();
             m_body << "  " << lp << " = getelementptr " << st << ", ptr "
@@ -1964,11 +1964,11 @@ void Codegen::emitPrintStruct(const Semantic::Type& st,
     const std::string llvm_st = "%struct." + mangleStruct(info.struct_name);
     for (std::size_t i = 0; i < structure->fields.size(); ++i) {
         if (i > 0) emitPrintLiteralString(", ");
-        emitPrintLiteralString(structure->fields[i].first + ": ");
+        emitPrintLiteralString(structure->fields[i].name + ": ");
         const std::string ptr = freshValue();
         m_body << "  " << ptr << " = getelementptr " << llvm_st << ", ptr "
                << addr << ", i32 0, i32 " << i << "\n";
-        emitPrintValueAtAddr(structure->fields[i].second, ptr);
+        emitPrintValueAtAddr(structure->fields[i].type, ptr);
     }
 
     emitPrintLiteralString(" }");
@@ -2111,7 +2111,7 @@ int Codegen::bitWidth(Semantic::TypeKind k) {
 int Codegen::structFieldIndex(const Semantic::StructSymbol& s,
                               const std::string& field) {
     for (std::size_t i = 0; i < s.fields.size(); ++i) {
-        if (s.fields[i].first == field) return static_cast<int>(i);
+        if (s.fields[i].name == field) return static_cast<int>(i);
     }
     internalError("missing field '" + field + "' in struct " +
                   s.qualified_name);

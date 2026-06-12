@@ -3,16 +3,16 @@ type Scalar = float64;
 
 namespace Geometry {
     struct Vec2 {
-        x: Scalar;
-        y: Scalar;
+        pub x: Scalar;
+        pub y: Scalar;
     }
 
     impl Vec2 {
-        fn length_sq(self: Vec2) -> Scalar {
+        pub fn length_sq(self: Vec2) -> Scalar {
             return self.x * self.x + self.y * self.y;
         }
 
-        fn scale(self: Vec2, factor: Scalar) -> Vec2 {
+        pub fn scale(self: Vec2, factor: Scalar) -> Vec2 {
             return Vec2 {
                 x: self.x * factor,
                 y: self.y * factor,

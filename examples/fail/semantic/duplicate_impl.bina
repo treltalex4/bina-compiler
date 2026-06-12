@@ -1,6 +1,6 @@
 // EXPECT_SEMANTIC_ERROR: duplicate impl
 struct Point {
-    x: int32;
+    pub x: int32;
 }
 
 impl Point {

@@ -1,6 +1,6 @@
 // OK: let/mut, assignment to mutable variables, field mutability, and shadowing.
 struct Counter {
-    value: int32;
+    pub value: int32;
 }
 
 fn main() -> int {

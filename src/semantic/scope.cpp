@@ -107,7 +107,7 @@ bool Scope::declareNamespace(std::string name, std::unique_ptr<Scope> ns) {
 
 bool Scope::defineStruct(
     const std::string& name,
-    std::vector<std::pair<std::string, Type>> fields) {
+    std::vector<StructFieldSymbol> fields) {
     auto it = m_structs.find(name);
     if (it == m_structs.end()) return false;
 
@@ -321,15 +321,17 @@ void Scope::dumpSymbols(std::ostream& out, int depth) const {
     for (const auto& [name, overloads] : m_functions) {
         (void)name;
         for (const auto& sig : overloads) {
-            out << pad << "fn " << functionSignatureToString(sig) << '\n';
+            out << pad << (sig.is_public ? "pub " : "") << "fn "
+                << functionSignatureToString(sig) << '\n';
         }
     }
 
     for (const auto& [name, structure] : m_structs) {
         out << pad << "struct " << structure.qualified_name << '\n';
-        for (const auto& [field_name, field_type] : structure.fields) {
-            out << pad << "  field " << field_name << ": "
-                << typeToString(field_type) << '\n';
+        for (const auto& field : structure.fields) {
+            out << pad << "  " << (field.is_public ? "pub " : "")
+                << "field " << field.name << ": "
+                << typeToString(field.type) << '\n';
         }
     }
 

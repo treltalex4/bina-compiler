@@ -43,7 +43,7 @@ comment    = "//" { any_char_except_newline } "\n" ;
 fn       let      mut      return   if       else
 while    break    continue struct   namespace type
 cast     true     false    print    input     exit
-panic    assert   len      void     impl
+panic    assert   len      void     impl      pub
 ```
 
 ### Идентификаторы
@@ -195,13 +195,15 @@ fn main() -> int { ... }
 ```ebnf
 struct_decl = "struct" IDENT "{" { struct_field } "}" ;
 
-struct_field = IDENT ":" type_expr ";" ;
+struct_field = [ "pub" ] IDENT ":" type_expr ";" ;
 ```
 
 #### Реализация методов структуры
 
 ```ebnf
-impl_decl = "impl" IDENT "{" { fn_decl } "}" ;
+impl_decl = "impl" IDENT "{" { impl_item } "}" ;
+
+impl_item = [ "pub" ] fn_decl ;
 ```
 
 Блок `impl` привязывает функции (методы) к структуре. Первый параметр метода
@@ -211,12 +213,12 @@ impl_decl = "impl" IDENT "{" { fn_decl } "}" ;
 Пример:
 ```bina
 struct Point {
-    x: float64;
-    y: float64;
+    pub x: float64;
+    pub y: float64;
 }
 
 impl Point {
-    fn length(self: Point) -> float64 {
+    pub fn length(self: Point) -> float64 {
         return self.x * self.x + self.y * self.y;
     }
 }
@@ -528,8 +530,8 @@ type Fahrenheit = float64;
 
 namespace Temp {
     struct Reading {
-        value : Celsius;
-        label : string;
+        pub value : Celsius;
+        pub label : string;
     }
 
     fn to_fahrenheit(c: Celsius) -> Fahrenheit {
@@ -603,16 +605,16 @@ fn main() -> int {
 
 ```bina
 struct Rect {
-    width:  float64;
-    height: float64;
+    pub width:  float64;
+    pub height: float64;
 }
 
 impl Rect {
-    fn area(self: Rect) -> float64 {
+    pub fn area(self: Rect) -> float64 {
         return self.width * self.height;
     }
 
-    fn is_square(self: Rect) -> bool {
+    pub fn is_square(self: Rect) -> bool {
         return self.width == self.height;
     }
 }

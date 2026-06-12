@@ -20,6 +20,7 @@ struct FunctionSignature {
     std::string name;
     std::string namespace_qname;
     std::string enclosing_struct_qname;
+    bool is_public = false;
     std::vector<Type> param_types;
     std::vector<std::string> param_names;
     Type return_type;
@@ -27,10 +28,16 @@ struct FunctionSignature {
     const Parser::FunctionDecl* decl;
 };
 
+struct StructFieldSymbol {
+    std::string name;
+    Type type;
+    bool is_public = false;
+};
+
 struct StructSymbol {
     std::string name;
     std::string qualified_name;
-    std::vector<std::pair<std::string, Type>> fields;
+    std::vector<StructFieldSymbol> fields;
     Parser::NodeLocation loc;
 };
 

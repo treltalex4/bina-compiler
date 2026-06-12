@@ -1,6 +1,6 @@
 // EXPECT_SEMANTIC_ERROR: type 'Point' cannot be used as a value
 struct Point {
-    x: int32;
+    pub x: int32;
 }
 
 fn main() -> int {

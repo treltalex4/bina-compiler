@@ -60,6 +60,8 @@ std::string tokenTypeToString(TokenType type) {
             return "KW_ASSERT";
         case TokenType::KW_LEN:
             return "KW_LEN";
+        case TokenType::KW_PUB:
+            return "KW_PUB";
         case TokenType::PLUS:
             return "PLUS";
         case TokenType::MINUS:
@@ -143,6 +145,7 @@ std::optional<TokenType> getKeywordType(const std::string& word) {
         {"panic", TokenType::KW_PANIC},
         {"assert", TokenType::KW_ASSERT},
         {"len", TokenType::KW_LEN},
+        {"pub", TokenType::KW_PUB},
         {"true", TokenType::BOOL_TRUE},
         {"false", TokenType::BOOL_FALSE},
     };

@@ -2,11 +2,11 @@
 // overloaded recursion, and method recursion.
 
 struct Counter {
-    value: int32;
+    pub value: int32;
 }
 
 impl Counter {
-    fn count_down(self: Counter) -> int32 {
+    pub fn count_down(self: Counter) -> int32 {
         if self.value <= 0i32 {
             return 0i32;
         }

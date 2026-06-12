@@ -1,6 +1,6 @@
 // EXPECT_SEMANTIC_ERROR: impl for struct 'Point' must be declared in the same scope
 struct Point {
-    x: int32;
+    pub x: int32;
 }
 
 namespace Inner {

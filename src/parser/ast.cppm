@@ -243,12 +243,14 @@ struct FunctionDecl {
     std::vector<Param> params;
     TypeExpr return_type;
     Block body;
+    bool is_public = false;
 };
 
 struct StructField {
     std::string name;
     TypeExpr type;
     NodeLocation loc;
+    bool is_public = false;
 };
 
 struct StructDecl {

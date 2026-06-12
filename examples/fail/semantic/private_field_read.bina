@@ -1,0 +1,13 @@
+// EXPECT_SEMANTIC_ERROR: private field read
+struct Secret {
+    pub visible: int32;
+    hidden: int32;
+}
+
+fn leak(secret: Secret) -> int32 {
+    return secret.hidden;
+}
+
+fn main() -> int {
+    return 0;
+}

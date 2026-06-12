@@ -23,7 +23,7 @@ class Scope {
     bool declareTypeAlias(TypeAliasSymbol sym);
     bool declareNamespace(std::string name, std::unique_ptr<Scope> ns);
     bool defineStruct(const std::string& name,
-                      std::vector<std::pair<std::string, Type>> fields);
+                      std::vector<StructFieldSymbol> fields);
     bool defineTypeAlias(const std::string& name, Type target_type);
 
     // поиск

@@ -1,6 +1,6 @@
 // EXPECT_SEMANTIC_ERROR: method 'value' first parameter must have type Point
 struct Point {
-    x: int32;
+    pub x: int32;
 }
 
 impl Point {

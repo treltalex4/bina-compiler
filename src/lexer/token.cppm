@@ -36,6 +36,7 @@ export enum class TokenType {
     KW_PANIC,
     KW_ASSERT,
     KW_LEN,
+    KW_PUB,
 
     // Операторы
     PLUS,

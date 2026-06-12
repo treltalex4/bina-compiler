@@ -71,6 +71,7 @@ void Parser::synchronize() {
             case TokenType::KW_NAMESPACE:
             case TokenType::KW_TYPE:
             case TokenType::KW_IMPL:
+            case TokenType::KW_PUB:
             case TokenType::KW_LET:
             case TokenType::KW_MUT:
             case TokenType::KW_IF:
@@ -650,12 +651,18 @@ Param Parser::parseParam() {
 
 StructField Parser::parseStructField() {
     NodeLocation loc = makeLoc(peek());
+    bool is_public = false;
+    if (peek().type == TokenType::KW_PUB) {
+        advance();
+        is_public = true;
+    }
+
     auto name_tok = expect(TokenType::IDENT, "expected field name");
     std::string name = name_tok ? name_tok->lexeme : "";
     consume(TokenType::COLON, "expected ':' after field name");
     TypeExpr type = parseType();
     consume(TokenType::SEMICOLON, "expected ';' after struct field");
-    return StructField{std::move(name), std::move(type), loc};
+    return StructField{std::move(name), std::move(type), loc, is_public};
 }
 
 Decl Parser::parseFunctionDecl() {
@@ -740,6 +747,12 @@ Decl Parser::parseImplDecl() {
     consume(TokenType::LBRACE, "expected '{' in impl");
     std::vector<std::unique_ptr<FunctionDecl>> methods;
     while (!isEnd() && peek().type != TokenType::RBRACE) {
+        bool is_public = false;
+        if (peek().type == TokenType::KW_PUB) {
+            advance();
+            is_public = true;
+        }
+
         if (peek().type != TokenType::KW_FN) {
             error("expected 'fn' in impl block");
             if (!isEnd()) advance();
@@ -748,6 +761,7 @@ Decl Parser::parseImplDecl() {
         }
         Decl d = parseFunctionDecl();
         if (auto* pfn = std::get_if<std::unique_ptr<FunctionDecl>>(&d.node)) {
+            (*pfn)->is_public = is_public;
             methods.push_back(std::move(*pfn));
         }
     }

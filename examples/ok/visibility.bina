@@ -1,0 +1,37 @@
+// OK: pub members are accessible outside, private members only inside methods.
+struct Counter {
+    pub value: int32;
+}
+
+impl Counter {
+    pub fn next(self: Counter) -> int32 {
+        return self.private_next();
+    }
+
+    fn private_next(self: Counter) -> int32 {
+        return self.value + 1i32;
+    }
+}
+
+struct Vault {
+    pub tag: int32;
+    secret: int32;
+}
+
+impl Vault {
+    pub fn reveal(self: Vault) -> int32 {
+        return self.secret + self.secret_twice();
+    }
+
+    fn secret_twice(self: Vault) -> int32 {
+        return self.secret * 2i32;
+    }
+}
+
+fn main() -> int {
+    let counter = Counter { value: 41i32 };
+    assert(counter.value == 41i32);
+    assert(counter.next() == 42i32);
+    print(counter);
+    return 0;
+}

@@ -1,10 +1,10 @@
 // EXPECT_SEMANTIC_ERROR: cannot compare A and B
 struct A {
-    x: int32;
+    pub x: int32;
 }
 
 struct B {
-    x: int32;
+    pub x: int32;
 }
 
 fn main() -> int {

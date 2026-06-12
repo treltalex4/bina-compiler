@@ -1,0 +1,10 @@
+// EXPECT_SEMANTIC_ERROR: private field initializer
+struct Secret {
+    pub visible: int32;
+    hidden: int32;
+}
+
+fn main() -> int {
+    let secret = Secret { visible: 1i32, hidden: 2i32 };
+    return 0;
+}

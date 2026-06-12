@@ -156,7 +156,8 @@ void printBlock(const Block& b, std::ostream& out, int depth) {
 }
 
 void printFn(const FunctionDecl& fn, std::ostream& out, int depth) {
-    out << ind(depth) << "FunctionDecl " << fn.name << " ->\n";
+    out << ind(depth) << (fn.is_public ? "pub " : "") << "FunctionDecl "
+        << fn.name << " ->\n";
     printType(fn.return_type, out, depth + 1);
     for (const auto& p : fn.params) {
         out << ind(depth + 1) << "Param " << p.name << ":\n";
@@ -233,7 +234,8 @@ void printDecl(const Decl& d, std::ostream& out, int depth) {
             [&](const std::unique_ptr<StructDecl>& s) {
                 out << ind(depth) << "StructDecl " << s->name << '\n';
                 for (const auto& f : s->fields) {
-                    out << ind(depth + 1) << "Field " << f.name << ":\n";
+                    out << ind(depth + 1) << (f.is_public ? "pub " : "")
+                        << "Field " << f.name << ":\n";
                     printType(f.type, out, depth + 2);
                 }
             },

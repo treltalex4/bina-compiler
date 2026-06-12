@@ -384,9 +384,8 @@ bool typeHasInfiniteSize(const Type& type, const Scope& scope,
         return false;
     }
 
-    for (const auto& [field_name, field_type] : structure->fields) {
-        (void)field_name;
-        if (typeHasInfiniteSize(field_type, scope, on_path)) {
+    for (const auto& field : structure->fields) {
+        if (typeHasInfiniteSize(field.type, scope, on_path)) {
             on_path.erase(qname);
             return true;
         }
@@ -400,9 +399,8 @@ bool structHasInfiniteSize(const StructSymbol& structure, const Scope& scope) {
     std::unordered_set<std::string> on_path;
     on_path.insert(structure.qualified_name);
 
-    for (const auto& [field_name, field_type] : structure.fields) {
-        (void)field_name;
-        if (typeHasInfiniteSize(field_type, scope, on_path)) return true;
+    for (const auto& field : structure.fields) {
+        if (typeHasInfiniteSize(field.type, scope, on_path)) return true;
     }
 
     return false;
@@ -433,9 +431,8 @@ bool isEqualityComparableType(const Type& type, const Scope& scope,
             return false;
         }
 
-        for (const auto& [field_name, field_type] : structure->fields) {
-            (void)field_name;
-            if (!isEqualityComparableType(field_type, scope, visiting)) {
+        for (const auto& field : structure->fields) {
+            if (!isEqualityComparableType(field.type, scope, visiting)) {
                 visiting.erase(struct_name);
                 return false;
             }
@@ -708,7 +705,7 @@ void Semantic::collectDecl(const Parser::Decl& d, Scope& scope) {
 
 void Semantic::collectStruct(const Parser::StructDecl& s, Scope& scope,
                              Parser::NodeLocation loc) {
-    std::vector<std::pair<std::string, Type>> fields;
+    std::vector<StructFieldSymbol> fields;
     std::unordered_set<std::string> names;
 
     for (const auto& field : s.fields) {
@@ -720,17 +717,23 @@ void Semantic::collectStruct(const Parser::StructDecl& s, Scope& scope,
         auto field_type = resolveTypeExpr(field.type, scope);
         if (!field_type) {
             error(field.type.loc, field_type.error());
-            fields.emplace_back(field.name, makeError());
+            fields.push_back(StructFieldSymbol{.name = field.name,
+                                               .type = makeError(),
+                                               .is_public = field.is_public});
             continue;
         }
         if (field_type->kind == TypeKind::VOID) {
             error(field.type.loc,
                   "field '" + field.name + "' cannot have type void");
-            fields.emplace_back(field.name, makeError());
+            fields.push_back(StructFieldSymbol{.name = field.name,
+                                               .type = makeError(),
+                                               .is_public = field.is_public});
             continue;
         }
 
-        fields.emplace_back(field.name, *field_type);
+        fields.push_back(StructFieldSymbol{.name = field.name,
+                                           .type = *field_type,
+                                           .is_public = field.is_public});
     }
 
     if (!scope.defineStruct(s.name, std::move(fields))) {
@@ -807,6 +810,7 @@ void Semantic::collectFunction(const Parser::FunctionDecl& fn, Scope& scope,
     FunctionSignature sig{.name = fn.name,
                           .namespace_qname = joinName(m_current_namespace),
                           .enclosing_struct_qname = "",
+                          .is_public = fn.is_public,
                           .param_types = std::move(param_types),
                           .param_names = std::move(param_names),
                           .return_type = *return_type,
@@ -885,6 +889,7 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
             .name = method->name,
             .namespace_qname = joinName(m_current_namespace),
             .enclosing_struct_qname = structure->qualified_name,
+            .is_public = method->is_public,
             .param_types = std::move(param_types),
             .param_names = std::move(param_names),
             .return_type = *return_type,
@@ -947,8 +952,18 @@ void Semantic::analyzeNamespace(const Parser::NamespaceDecl& ns) {
 }
 
 void Semantic::analyzeImpl(const Parser::ImplDecl& impl) {
-    for (const auto& method : impl.methods)
+    const StructSymbol* structure =
+        m_current_scope->findStruct(impl.struct_name);
+    const std::string saved = m_current_impl_struct;
+    if (structure != nullptr) {
+        m_current_impl_struct = structure->qualified_name;
+    }
+
+    for (const auto& method : impl.methods) {
         analyzeFunction(*method, *m_current_scope);
+    }
+
+    m_current_impl_struct = saved;
 }
 
 void Semantic::analyzeFunction(const Parser::FunctionDecl& fn, Scope& parent) {
@@ -1354,6 +1369,14 @@ Type Semantic::checkCall(const Parser::CallExpr& c, Parser::NodeLocation loc) {
 
     OverloadResolution resolved = resolveOverload(overloads, arg_types);
     if (resolved.status == OverloadResult::OK) {
+        if (!resolved.chosen->enclosing_struct_qname.empty() &&
+            !resolved.chosen->is_public &&
+            resolved.chosen->enclosing_struct_qname !=
+                m_current_impl_struct) {
+            error(loc, "method '" + joinName(c.name.parts) + "' is private");
+            return makeError();
+        }
+
         m_call_targets[&c] = resolved.chosen;
         return resolved.chosen->return_type;
     }
@@ -1395,6 +1418,13 @@ Type Semantic::checkMethodCall(const Parser::MethodCall& c,
 
     OverloadResolution resolved = resolveOverload(overloads, arg_types);
     if (resolved.status == OverloadResult::OK) {
+        if (!resolved.chosen->is_public &&
+            struct_name != m_current_impl_struct) {
+            error(loc, "method '" + c.method + "' of struct '" +
+                           struct_name + "' is private");
+            return makeError();
+        }
+
         m_call_targets[&c] = resolved.chosen;
         return resolved.chosen->return_type;
     }
@@ -1463,8 +1493,15 @@ Type Semantic::checkFieldAccess(const Parser::FieldAccess& fa,
         return makeError();
     }
 
-    for (const auto& [name, type] : structure->fields) {
-        if (name == fa.field) return type;
+    for (const auto& field : structure->fields) {
+        if (field.name != fa.field) continue;
+
+        if (!field.is_public &&
+            structure->qualified_name != m_current_impl_struct) {
+            error(loc, "field '" + fa.field + "' of struct '" +
+                           struct_name + "' is private");
+        }
+        return field.type;
     }
 
     error(loc, "struct '" + struct_name + "' has no field '" + fa.field + "'");
@@ -1553,8 +1590,10 @@ Type Semantic::checkStructLit(const Parser::StructLiteral& sl,
         return makeError();
     }
 
-    std::unordered_map<std::string, Type> field_types;
-    for (const auto& [name, type] : structure->fields) field_types[name] = type;
+    std::unordered_map<std::string, const StructFieldSymbol*> field_types;
+    for (const auto& field : structure->fields) {
+        field_types[field.name] = &field;
+    }
 
     std::unordered_set<std::string> initialized;
     for (const auto& field : sl.fields) {
@@ -1570,18 +1609,26 @@ Type Semantic::checkStructLit(const Parser::StructLiteral& sl,
             continue;
         }
 
-        Type actual = checkExpr(field.value, &expected->second);
-        if (!isConvertibleTo(actual, expected->second)) {
+        if (!expected->second->is_public &&
+            structure->qualified_name != m_current_impl_struct) {
+            error(field.loc, "cannot initialize private field '" + field.name +
+                                 "' of struct '" +
+                                 structure->qualified_name +
+                                 "' outside its methods");
+        }
+
+        Type actual = checkExpr(field.value, &expected->second->type);
+        if (!isConvertibleTo(actual, expected->second->type)) {
             error(field.loc, "cannot initialize field '" + field.name +
-                                 "' of type " + typeToString(expected->second) +
+                                 "' of type " +
+                                 typeToString(expected->second->type) +
                                  " with value of type " + typeToString(actual));
         }
     }
 
-    for (const auto& [name, type] : structure->fields) {
-        (void)type;
-        if (!initialized.contains(name)) {
-            error(loc, "missing initializer for field '" + name + "'");
+    for (const auto& field : structure->fields) {
+        if (!initialized.contains(field.name)) {
+            error(loc, "missing initializer for field '" + field.name + "'");
         }
     }
 
