@@ -1,0 +1,12 @@
+// EXPECT_SEMANTIC_ERROR: ambiguous call
+fn balanced(a: int64, b: int32) -> int32 {
+    return 1i32;
+}
+
+fn balanced(a: int32, b: int64) -> int32 {
+    return 2i32;
+}
+
+fn main() -> int {
+    return balanced(1i32, 2i32);
+}

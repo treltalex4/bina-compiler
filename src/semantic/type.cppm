@@ -55,6 +55,8 @@ bool typeEquals(const Type& a, const Type& b);
 bool operator==(const Type& a, const Type& b);
 std::string typeToString(const Type& type);
 bool isConvertibleTo(const Type& from, const Type& to);
+bool isPromotionOf(const Type& from, const Type& to);
+int wideningDistance(const Type& from, const Type& to);
 std::optional<Type> getCommonType(const Type& a, const Type& b);
 
 bool isInteger(const Type& type);

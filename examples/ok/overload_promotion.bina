@@ -1,0 +1,31 @@
+// OK: overload resolution ranks exact, promotions, conversions, and distance.
+fn choose_number(x: int64) -> int32 {
+    return 1i32;
+}
+
+fn choose_number(x: float64) -> int32 {
+    return 2i32;
+}
+
+fn choose_nearest(x: int16) -> int32 {
+    return 16i32;
+}
+
+fn choose_nearest(x: int64) -> int32 {
+    return 64i32;
+}
+
+fn choose_unsigned(x: uint64) -> int32 {
+    return 100i32;
+}
+
+fn choose_unsigned(x: int64) -> int32 {
+    return 200i32;
+}
+
+fn main() -> int {
+    assert(choose_number(10i32) == 1i32);
+    assert(choose_nearest(1i8) == 16i32);
+    assert(choose_unsigned(1u32) == 100i32);
+    return 0;
+}

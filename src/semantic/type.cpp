@@ -3,6 +3,64 @@ module bina.semantic.type;
 import std;
 
 namespace Semantic {
+namespace {
+constexpr std::pair<TypeKind, TypeKind> kWideningEdges[] = {
+    {TypeKind::INT8, TypeKind::INT16},
+    {TypeKind::INT16, TypeKind::INT32},
+    {TypeKind::INT32, TypeKind::INT64},
+    {TypeKind::UINT8, TypeKind::UINT16},
+    {TypeKind::UINT16, TypeKind::UINT32},
+    {TypeKind::UINT32, TypeKind::UINT64},
+    {TypeKind::UINT8, TypeKind::INT16},
+    {TypeKind::UINT16, TypeKind::INT32},
+    {TypeKind::UINT32, TypeKind::INT64},
+    {TypeKind::INT32, TypeKind::FLOAT32},
+    {TypeKind::INT64, TypeKind::FLOAT64},
+    {TypeKind::FLOAT32, TypeKind::FLOAT64},
+};
+
+int numericRank(TypeKind kind) {
+    switch (kind) {
+        case TypeKind::INT8:
+        case TypeKind::UINT8:
+        case TypeKind::FLOAT32:
+            return 0;
+        case TypeKind::INT16:
+        case TypeKind::UINT16:
+        case TypeKind::FLOAT64:
+            return 1;
+        case TypeKind::INT32:
+        case TypeKind::UINT32:
+            return 2;
+        case TypeKind::INT64:
+        case TypeKind::UINT64:
+            return 3;
+        default:
+            return -1;
+    }
+}
+
+int numericFamily(TypeKind kind) {
+    switch (kind) {
+        case TypeKind::INT8:
+        case TypeKind::INT16:
+        case TypeKind::INT32:
+        case TypeKind::INT64:
+            return 0;
+        case TypeKind::UINT8:
+        case TypeKind::UINT16:
+        case TypeKind::UINT32:
+        case TypeKind::UINT64:
+            return 1;
+        case TypeKind::FLOAT32:
+        case TypeKind::FLOAT64:
+            return 2;
+        default:
+            return -1;
+    }
+}
+}  // namespace
+
 // создание типов
 Type makePrimitive(TypeKind kind) {
     Type t;
@@ -101,36 +159,46 @@ bool isConvertibleTo(const Type& from, const Type& to) {
     if (typeEquals(from, to)) return true;
     if (from.kind == TypeKind::ERROR || to.kind == TypeKind::ERROR) return true;
 
-    switch (from.kind) {
-        case TypeKind::INT8:
-            return to.kind == TypeKind::INT16 || to.kind == TypeKind::INT32 ||
-                   to.kind == TypeKind::INT64 || to.kind == TypeKind::FLOAT32 ||
-                   to.kind == TypeKind::FLOAT64;
-        case TypeKind::INT16:
-            return to.kind == TypeKind::INT32 || to.kind == TypeKind::INT64 ||
-                   to.kind == TypeKind::FLOAT32 || to.kind == TypeKind::FLOAT64;
-        case TypeKind::INT32:
-            return to.kind == TypeKind::INT64 || to.kind == TypeKind::FLOAT32 ||
-                   to.kind == TypeKind::FLOAT64;
-        case TypeKind::INT64:
-            return to.kind == TypeKind::FLOAT64;
-        case TypeKind::UINT8:
-            return to.kind == TypeKind::UINT16 || to.kind == TypeKind::UINT32 ||
-                   to.kind == TypeKind::UINT64 || to.kind == TypeKind::INT16 ||
-                   to.kind == TypeKind::INT32 || to.kind == TypeKind::INT64 ||
-                   to.kind == TypeKind::FLOAT32 || to.kind == TypeKind::FLOAT64;
-        case TypeKind::UINT16:
-            return to.kind == TypeKind::UINT32 || to.kind == TypeKind::UINT64 ||
-                   to.kind == TypeKind::INT32 || to.kind == TypeKind::INT64 ||
-                   to.kind == TypeKind::FLOAT32 || to.kind == TypeKind::FLOAT64;
-        case TypeKind::UINT32:
-            return to.kind == TypeKind::UINT64 || to.kind == TypeKind::INT64 ||
-                   to.kind == TypeKind::FLOAT64;
-        case TypeKind::FLOAT32:
-            return to.kind == TypeKind::FLOAT64;
-        default:
-            return false;
+    return wideningDistance(from, to) >= 0;
+}
+
+bool isPromotionOf(const Type& from, const Type& to) {
+    const int from_family = numericFamily(from.kind);
+    const int to_family = numericFamily(to.kind);
+    return from_family >= 0 && from_family == to_family &&
+           numericRank(from.kind) < numericRank(to.kind);
+}
+
+int wideningDistance(const Type& from, const Type& to) {
+    if (!isArithmetic(from) || !isArithmetic(to)) return -1;
+    if (from.kind == to.kind) return 0;
+
+    constexpr std::size_t type_count =
+        static_cast<std::size_t>(TypeKind::ERROR) + 1;
+    std::array<bool, type_count> visited{};
+    std::deque<std::pair<TypeKind, int>> queue;
+
+    visited[static_cast<std::size_t>(from.kind)] = true;
+    queue.push_back({from.kind, 0});
+
+    while (!queue.empty()) {
+        const auto [kind, distance] = queue.front();
+        queue.pop_front();
+
+        for (const auto& [edge_from, edge_to] : kWideningEdges) {
+            if (edge_from != kind) continue;
+
+            const auto index = static_cast<std::size_t>(edge_to);
+            if (visited[index]) continue;
+
+            if (edge_to == to.kind) return distance + 1;
+
+            visited[index] = true;
+            queue.push_back({edge_to, distance + 1});
+        }
     }
+
+    return -1;
 }
 
 std::optional<Type> getCommonType(const Type& a, const Type& b) {
