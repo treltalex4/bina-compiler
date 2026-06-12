@@ -1,19 +1,19 @@
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 typedef struct {
     char* ptr;
     int64_t len;
 } bina_str;
 
-#define DIE(fmt, ...)                                                       \
-    do {                                                                    \
-        fprintf(stderr, "runtime error: " fmt "\n", ##__VA_ARGS__);        \
-        exit(1);                                                            \
+#define DIE(fmt, ...)                                               \
+    do {                                                            \
+        fprintf(stderr, "runtime error: " fmt "\n", ##__VA_ARGS__); \
+        exit(1);                                                    \
     } while (0)
 
 static void* bina_xmalloc(size_t size) {
@@ -30,9 +30,7 @@ static void* bina_xrealloc(void* old, size_t size) {
 
 void bina_print_i64(int64_t x) { printf("%lld", (long long)x); }
 
-void bina_print_u64(uint64_t x) {
-    printf("%llu", (unsigned long long)x);
-}
+void bina_print_u64(uint64_t x) { printf("%llu", (unsigned long long)x); }
 
 void bina_print_f64(double x) {
     if (x != x) {
@@ -126,8 +124,7 @@ void bina_int_overflow(int64_t line) {
 }
 
 uint32_t bina_char_from(int64_t code, int64_t line) {
-    if (code < 0 || code > 0x10FFFF ||
-        (code >= 0xD800 && code <= 0xDFFF)) {
+    if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
         DIE("invalid character code at line %lld", (long long)line);
     }
     return (uint32_t)code;
@@ -179,8 +176,7 @@ static char* dup_zero_terminated(bina_str s) {
 
 static bool is_digit_char(char c) { return c >= '0' && c <= '9'; }
 
-/* Формат целого: "-"? digit+ — без пробелов, знака "+", hex и прочего,
- * что молча принимает strtoll. */
+// формат целого: "-"? digit+ — без пробелов знака "+" hex и прочего
 static bool is_strict_int_format(const char* z) {
     size_t i = 0;
     if (z[i] == '-') i++;
@@ -189,8 +185,8 @@ static bool is_strict_int_format(const char* z) {
     return z[i] == '\0';
 }
 
-/* Формат вещественного: "-"? digit+ ("." digit+)? (("e"|"E") ("+"|"-")? digit+)?
- * — как числовой литерал языка; hex-float и "Infinity" из strtod не проходят. */
+// формат вещественного: "-"? digit+ ("." digit+)? (("e"|"E") ("+"|"-")?
+// digit+)? — как числовой литерал языка
 static bool is_strict_float_format(const char* z) {
     size_t i = 0;
     if (z[i] == '-') i++;

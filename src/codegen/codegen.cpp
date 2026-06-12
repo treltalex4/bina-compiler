@@ -171,7 +171,6 @@ std::string floatConstantText(const std::string& literal,
     hex << "0x" << std::uppercase << std::hex << std::setw(16)
         << std::setfill('0') << bits;
     return hex.str();
-
 }
 
 std::string doubleHex(double value) {
@@ -182,8 +181,7 @@ std::string doubleHex(double value) {
     return hex.str();
 }
 
-std::pair<std::string, std::string> integerBounds(
-    Semantic::TypeKind kind) {
+std::pair<std::string, std::string> integerBounds(Semantic::TypeKind kind) {
     using TK = Semantic::TypeKind;
     switch (kind) {
         case TK::INT8:
@@ -240,8 +238,8 @@ Codegen::Codegen(const Semantic::TypedProgram& typed,
                  std::string source_filename)
     : m_typed(typed),
       m_source_filename(std::move(source_filename)),
-      m_current_return_type(Semantic::makePrimitive(
-          Semantic::TypeKind::VOID)) {}
+      m_current_return_type(Semantic::makePrimitive(Semantic::TypeKind::VOID)) {
+}
 
 std::expected<std::string, std::vector<std::string>> Codegen::emit() {
     try {
@@ -283,7 +281,8 @@ void Codegen::emitRuntimeDecls() {
     m_header << "declare i64 @bina_parse_i64({ ptr, i64 }, i64)\n";
     m_header << "declare i64 @bina_parse_u64({ ptr, i64 }, i64)\n";
     m_header << "declare double @bina_parse_f64({ ptr, i64 }, i64)\n";
-    m_header << "declare { ptr, i64 } @bina_str_concat({ ptr, i64 }, { ptr, i64 })\n";
+    m_header << "declare { ptr, i64 } @bina_str_concat({ ptr, i64 }, { ptr, "
+                "i64 })\n";
     m_header << "declare i1 @bina_str_eq({ ptr, i64 }, { ptr, i64 })\n";
     m_header << "declare void @bina_exit(i64)\n\n";
 
@@ -318,8 +317,7 @@ void Codegen::emitStructTypes() {
                             const Semantic::StructSymbol* sym =
                                 findStructByQualifiedName(qname);
                             if (sym == nullptr) {
-                                internalError("missing struct symbol " +
-                                              qname);
+                                internalError("missing struct symbol " + qname);
                             }
 
                             m_header << "%struct." << mangleStruct(qname)
@@ -327,8 +325,8 @@ void Codegen::emitStructTypes() {
                             for (std::size_t i = 0; i < sym->fields.size();
                                  ++i) {
                                 if (i > 0) m_header << ", ";
-                                m_header << llvmStoredType(
-                                    sym->fields[i].second);
+                                m_header
+                                    << llvmStoredType(sym->fields[i].second);
                             }
                             m_header << " }\n";
                         },
@@ -369,8 +367,8 @@ void Codegen::emitFunctions() {
                                                                *method);
                                 if (sig == nullptr) {
                                     internalError("missing method signature " +
-                                                  impl->struct_name + "::" +
-                                                  method->name);
+                                                  impl->struct_name +
+                                                  "::" + method->name);
                                 }
                                 emitFunction(*method, *sig);
                             }
@@ -401,12 +399,8 @@ void Codegen::emitFunction(const Parser::FunctionDecl& fn,
     const std::string mangled = mangle(sig);
     m_in_main = (mangled == "@main");
 
-    const std::string ret_llvm =
-        m_in_main ? "i32" : llvmType(sig.return_type);
+    const std::string ret_llvm = m_in_main ? "i32" : llvmType(sig.return_type);
 
-    // Тело генерируется в отдельный буфер: все alloca собираются в
-    // m_alloca_lines и затем вставляются в начало entry-блока, чтобы
-    // alloca внутри циклов не наращивали стек на каждой итерации.
     std::ostringstream module_text = std::move(m_body);
     m_body = std::ostringstream{};
     m_current_label = "entry";
@@ -461,9 +455,7 @@ void Codegen::genStmt(const Parser::Stmt& s) {
             [&](const std::unique_ptr<Parser::AssignStmt>& a) {
                 genAssign(*a, s.loc);
             },
-            [&](const std::unique_ptr<Parser::IfStmt>& i) {
-                genIf(*i, s.loc);
-            },
+            [&](const std::unique_ptr<Parser::IfStmt>& i) { genIf(*i, s.loc); },
             [&](const std::unique_ptr<Parser::WhileStmt>& w) {
                 genWhile(*w, s.loc);
             },
@@ -484,8 +476,7 @@ void Codegen::genStmt(const Parser::Stmt& s) {
 void Codegen::genLet(const Parser::LetStmt& l, Parser::NodeLocation) {
     const Semantic::Type type = m_typed.decl_types.at(&l);
 
-    // Инициализатор вычисляется до объявления имени: в `let x = x + 1;`
-    // правый x должен резолвиться во внешнюю (затеняемую) переменную.
+    // Инициализатор вычисляется до объявления имени
     Value init = genExpr(l.init);
     init = emitConversion(init, type, false, l.init.loc);
 
@@ -505,8 +496,7 @@ void Codegen::genAssign(const Parser::AssignStmt& a, Parser::NodeLocation) {
 void Codegen::genIf(const Parser::IfStmt& i, Parser::NodeLocation) {
     Value cond = genExpr(i.condition);
     const std::string then_label = freshLabel("if.then");
-    const std::string else_label =
-        i.else_branch ? freshLabel("if.else") : "";
+    const std::string else_label = i.else_branch ? freshLabel("if.else") : "";
     const std::string end_label = freshLabel("if.end");
 
     emitTerminator("br i1 " + cond.ssa + ", label %" + then_label +
@@ -567,8 +557,7 @@ void Codegen::genReturn(const Parser::ReturnStmt& r, Parser::NodeLocation) {
             ret32 = "0";
         } else {
             ret32 = freshValue();
-            m_body << "  " << ret32 << " = trunc i64 " << v.ssa
-                   << " to i32\n";
+            m_body << "  " << ret32 << " = trunc i64 " << v.ssa << " to i32\n";
         }
         emitTerminator("ret i32 " + ret32);
         return;
@@ -578,7 +567,8 @@ void Codegen::genReturn(const Parser::ReturnStmt& r, Parser::NodeLocation) {
 }
 
 void Codegen::genBreak() {
-    if (m_loop_stack.empty()) internalError("break outside loop reached codegen");
+    if (m_loop_stack.empty())
+        internalError("break outside loop reached codegen");
     emitTerminator("br label %" + m_loop_stack.back().second);
 }
 
@@ -598,7 +588,9 @@ void Codegen::genBlock(const Parser::Block& b) {
     envPop();
 }
 
-void Codegen::genExprStmt(const Parser::ExprStmt& e) { (void)genExpr(e.expression); }
+void Codegen::genExprStmt(const Parser::ExprStmt& e) {
+    (void)genExpr(e.expression);
+}
 
 Codegen::Value Codegen::genExpr(const Parser::Expr& e) {
     const Semantic::Type result_t = exprType(e);
@@ -611,9 +603,7 @@ Codegen::Value Codegen::genExpr(const Parser::Expr& e) {
                 return genFloatLit(lit, result_t);
             },
             [&](const Parser::CharLiteral& lit) { return genCharLit(lit); },
-            [&](const Parser::StringLiteral& lit) {
-                return genStringLit(lit);
-            },
+            [&](const Parser::StringLiteral& lit) { return genStringLit(lit); },
             [&](const Parser::BoolLiteral& lit) { return genBoolLit(lit); },
             [&](const Parser::Identifier& id) {
                 return genIdentifier(id, result_t);
@@ -662,8 +652,8 @@ Codegen::Value Codegen::genFloatLit(const Parser::FloatLiteral& l,
                                     const Semantic::Type& t) {
     const std::string value = floatConstantText(l.value, t);
     const std::string ssa = freshValue();
-    m_body << "  " << ssa << " = fadd " << llvmType(t) << " 0.0, "
-           << value << "\n";
+    m_body << "  " << ssa << " = fadd " << llvmType(t) << " 0.0, " << value
+           << "\n";
     return {ssa, t};
 }
 
@@ -683,8 +673,8 @@ Codegen::Value Codegen::genStringLit(const Parser::StringLiteral& l) {
     const std::string str = freshValue();
     m_body << "  " << ptr << " = getelementptr [" << len << " x i8], ptr "
            << const_name << ", i64 0, i64 0\n";
-    m_body << "  " << with_ptr
-           << " = insertvalue { ptr, i64 } undef, ptr " << ptr << ", 0\n";
+    m_body << "  " << with_ptr << " = insertvalue { ptr, i64 } undef, ptr "
+           << ptr << ", 0\n";
     m_body << "  " << str << " = insertvalue { ptr, i64 } " << with_ptr
            << ", i64 " << len << ", 1\n";
 
@@ -694,8 +684,8 @@ Codegen::Value Codegen::genStringLit(const Parser::StringLiteral& l) {
 Codegen::Value Codegen::genBoolLit(const Parser::BoolLiteral& l) {
     const Semantic::Type t = Semantic::makePrimitive(Semantic::TypeKind::BOOL);
     const std::string ssa = freshValue();
-    m_body << "  " << ssa << " = xor i1 "
-           << (l.value ? "true" : "false") << ", false\n";
+    m_body << "  " << ssa << " = xor i1 " << (l.value ? "true" : "false")
+           << ", false\n";
     return {ssa, t};
 }
 
@@ -736,9 +726,8 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
     if ((b.op == TT::EQUAL || b.op == TT::NOT_EQUAL) &&
         lhs.type.kind == TK::STRING) {
         const std::string eq = freshValue();
-        m_body << "  " << eq
-               << " = call i1 @bina_str_eq({ ptr, i64 } " << lhs.ssa
-               << ", { ptr, i64 } " << rhs.ssa << ")\n";
+        m_body << "  " << eq << " = call i1 @bina_str_eq({ ptr, i64 } "
+               << lhs.ssa << ", { ptr, i64 } " << rhs.ssa << ")\n";
         if (b.op == TT::NOT_EQUAL) {
             const std::string neq = freshValue();
             m_body << "  " << neq << " = xor i1 " << eq << ", true\n";
@@ -768,27 +757,35 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
         const std::string ty = llvmType(op_t);
 
         if (b.op == TT::PLUS) {
-            if (Semantic::isFloat(op_t)) return makeBinOp("fadd", ty, l, r, op_t);
+            if (Semantic::isFloat(op_t))
+                return makeBinOp("fadd", ty, l, r, op_t);
             return emitCheckedAddSubMul("add", op_t, l, r, loc);
         }
         if (b.op == TT::MINUS) {
-            if (Semantic::isFloat(op_t)) return makeBinOp("fsub", ty, l, r, op_t);
+            if (Semantic::isFloat(op_t))
+                return makeBinOp("fsub", ty, l, r, op_t);
             return emitCheckedAddSubMul("sub", op_t, l, r, loc);
         }
         if (b.op == TT::STAR) {
-            if (Semantic::isFloat(op_t)) return makeBinOp("fmul", ty, l, r, op_t);
+            if (Semantic::isFloat(op_t))
+                return makeBinOp("fmul", ty, l, r, op_t);
             return emitCheckedAddSubMul("mul", op_t, l, r, loc);
         }
         if (b.op == TT::SLASH) {
-            if (Semantic::isFloat(op_t)) return makeBinOp("fdiv", ty, l, r, op_t);
+            if (Semantic::isFloat(op_t))
+                return makeBinOp("fdiv", ty, l, r, op_t);
             emitDivByZeroCheck(r, ty, loc);
-            if (isSigned(op_t.kind)) emitSignedDivOverflowCheck(l, r, op_t, loc);
-            return makeBinOp(isSigned(op_t.kind) ? "sdiv" : "udiv", ty, l, r, op_t);
+            if (isSigned(op_t.kind))
+                emitSignedDivOverflowCheck(l, r, op_t, loc);
+            return makeBinOp(isSigned(op_t.kind) ? "sdiv" : "udiv", ty, l, r,
+                             op_t);
         }
         if (b.op == TT::PERCENT) {
             emitDivByZeroCheck(r, ty, loc);
-            if (isSigned(op_t.kind)) emitSignedDivOverflowCheck(l, r, op_t, loc);
-            return makeBinOp(isSigned(op_t.kind) ? "srem" : "urem", ty, l, r, op_t);
+            if (isSigned(op_t.kind))
+                emitSignedDivOverflowCheck(l, r, op_t, loc);
+            return makeBinOp(isSigned(op_t.kind) ? "srem" : "urem", ty, l, r,
+                             op_t);
         }
     }
 
@@ -801,12 +798,11 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
     auto emitIntCmp = [&](const Semantic::Type& op_t, const std::string& l,
                           const std::string& r, std::string_view signed_op,
                           std::string_view unsigned_op) -> Value {
-        const std::string pred =
-            isSigned(op_t.kind) ? std::string(signed_op)
-                                : std::string(unsigned_op);
+        const std::string pred = isSigned(op_t.kind) ? std::string(signed_op)
+                                                     : std::string(unsigned_op);
         const std::string ssa = freshValue();
-        m_body << "  " << ssa << " = icmp " << pred << " "
-               << llvmType(op_t) << " " << l << ", " << r << "\n";
+        m_body << "  " << ssa << " = icmp " << pred << " " << llvmType(op_t)
+               << " " << l << ", " << r << "\n";
         return {ssa, Semantic::makePrimitive(TK::BOOL)};
     };
 
@@ -814,8 +810,8 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
                             const std::string& r,
                             std::string_view pred) -> Value {
         const std::string ssa = freshValue();
-        m_body << "  " << ssa << " = fcmp " << pred << " "
-               << llvmType(op_t) << " " << l << ", " << r << "\n";
+        m_body << "  " << ssa << " = fcmp " << pred << " " << llvmType(op_t)
+               << " " << l << ", " << r << "\n";
         return {ssa, Semantic::makePrimitive(TK::BOOL)};
     };
 
@@ -823,16 +819,15 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
         Value eq;
         if (lhs.type.kind == TK::BOOL || lhs.type.kind == TK::CHAR) {
             const std::string ssa = freshValue();
-            m_body << "  " << ssa << " = icmp eq " << llvmType(lhs.type)
-                   << " " << lhs.ssa << ", " << rhs.ssa << "\n";
+            m_body << "  " << ssa << " = icmp eq " << llvmType(lhs.type) << " "
+                   << lhs.ssa << ", " << rhs.ssa << "\n";
             eq = {ssa, Semantic::makePrimitive(TK::BOOL)};
         } else {
             const Semantic::Type op_t = commonNumeric();
             const std::string l = convertNumeric(lhs, op_t);
             const std::string r = convertNumeric(rhs, op_t);
-            eq = Semantic::isFloat(op_t)
-                     ? emitFloatCmp(op_t, l, r, "oeq")
-                     : emitIntCmp(op_t, l, r, "eq", "eq");
+            eq = Semantic::isFloat(op_t) ? emitFloatCmp(op_t, l, r, "oeq")
+                                         : emitIntCmp(op_t, l, r, "eq", "eq");
         }
 
         if (b.op == TT::NOT_EQUAL) {
@@ -843,27 +838,31 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
         return eq;
     }
 
-    if (b.op == TT::LESS || b.op == TT::LESS_EQUAL ||
-        b.op == TT::GREATER || b.op == TT::GREATER_EQUAL) {
+    if (b.op == TT::LESS || b.op == TT::LESS_EQUAL || b.op == TT::GREATER ||
+        b.op == TT::GREATER_EQUAL) {
         const Semantic::Type op_t = commonNumeric();
         const std::string l = convertNumeric(lhs, op_t);
         const std::string r = convertNumeric(rhs, op_t);
 
         if (b.op == TT::LESS) {
-            return Semantic::isFloat(op_t) ? emitFloatCmp(op_t, l, r, "olt")
-                                           : emitIntCmp(op_t, l, r, "slt", "ult");
+            return Semantic::isFloat(op_t)
+                       ? emitFloatCmp(op_t, l, r, "olt")
+                       : emitIntCmp(op_t, l, r, "slt", "ult");
         }
         if (b.op == TT::LESS_EQUAL) {
-            return Semantic::isFloat(op_t) ? emitFloatCmp(op_t, l, r, "ole")
-                                           : emitIntCmp(op_t, l, r, "sle", "ule");
+            return Semantic::isFloat(op_t)
+                       ? emitFloatCmp(op_t, l, r, "ole")
+                       : emitIntCmp(op_t, l, r, "sle", "ule");
         }
         if (b.op == TT::GREATER) {
-            return Semantic::isFloat(op_t) ? emitFloatCmp(op_t, l, r, "ogt")
-                                           : emitIntCmp(op_t, l, r, "sgt", "ugt");
+            return Semantic::isFloat(op_t)
+                       ? emitFloatCmp(op_t, l, r, "ogt")
+                       : emitIntCmp(op_t, l, r, "sgt", "ugt");
         }
         if (b.op == TT::GREATER_EQUAL) {
-            return Semantic::isFloat(op_t) ? emitFloatCmp(op_t, l, r, "oge")
-                                           : emitIntCmp(op_t, l, r, "sge", "uge");
+            return Semantic::isFloat(op_t)
+                       ? emitFloatCmp(op_t, l, r, "oge")
+                       : emitIntCmp(op_t, l, r, "sge", "uge");
         }
     }
 
@@ -890,8 +889,8 @@ Codegen::Value Codegen::genUnary(const Parser::UnaryExpr& u,
         Value v = genExpr(u.operand);
         if (Semantic::isFloat(result_t)) {
             const std::string ssa = freshValue();
-            m_body << "  " << ssa << " = fneg " << llvmType(result_t)
-                   << " " << v.ssa << "\n";
+            m_body << "  " << ssa << " = fneg " << llvmType(result_t) << " "
+                   << v.ssa << "\n";
             return {ssa, result_t};
         }
         if (Semantic::isInteger(result_t)) {
@@ -942,15 +941,16 @@ Codegen::Value Codegen::genCall(const Parser::CallExpr& c,
 
     m_body << "  ";
     if (!ret_void) m_body << result << " = ";
-    m_body << "call " << (ret_void ? "void" : llvmType(sig->return_type))
-           << " " << mangle(*sig) << "(";
+    m_body << "call " << (ret_void ? "void" : llvmType(sig->return_type)) << " "
+           << mangle(*sig) << "(";
     for (std::size_t i = 0; i < converted.size(); ++i) {
         if (i > 0) m_body << ", ";
         m_body << llvmType(sig->param_types[i]) << " " << converted[i].ssa;
     }
     m_body << ")\n";
 
-    if (ret_void) return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
+    if (ret_void)
+        return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
     return {result, sig->return_type};
 }
 
@@ -976,15 +976,16 @@ Codegen::Value Codegen::genMethodCall(const Parser::MethodCall& c,
 
     m_body << "  ";
     if (!ret_void) m_body << result << " = ";
-    m_body << "call " << (ret_void ? "void" : llvmType(sig->return_type))
-           << " " << mangle(*sig) << "(";
+    m_body << "call " << (ret_void ? "void" : llvmType(sig->return_type)) << " "
+           << mangle(*sig) << "(";
     for (std::size_t i = 0; i < converted.size(); ++i) {
         if (i > 0) m_body << ", ";
         m_body << llvmType(sig->param_types[i]) << " " << converted[i].ssa;
     }
     m_body << ")\n";
 
-    if (ret_void) return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
+    if (ret_void)
+        return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
     return {result, sig->return_type};
 }
 
@@ -994,9 +995,9 @@ Codegen::Value Codegen::genIndex(const Parser::IndexExpr& ix,
     const Semantic::Type arr_t = exprType(ix.object);
     const auto& array = std::get<Semantic::ArrayTypeInfo>(arr_t.data);
 
-    const std::string arr_addr =
-        isLvalueExpr(ix.object) ? genLvalueAddr(ix.object)
-                                : materializeAddr(genExpr(ix.object));
+    const std::string arr_addr = isLvalueExpr(ix.object)
+                                     ? genLvalueAddr(ix.object)
+                                     : materializeAddr(genExpr(ix.object));
 
     Value idx = genExpr(ix.index);
     const std::string i64_idx =
@@ -1018,9 +1019,9 @@ Codegen::Value Codegen::genFieldAccess(const Parser::FieldAccess& fa,
     if (structure == nullptr) internalError("missing struct " + qname);
     const int idx = structFieldIndex(*structure, fa.field);
 
-    const std::string obj_addr =
-        isLvalueExpr(fa.object) ? genLvalueAddr(fa.object)
-                                : materializeAddr(genExpr(fa.object));
+    const std::string obj_addr = isLvalueExpr(fa.object)
+                                     ? genLvalueAddr(fa.object)
+                                     : materializeAddr(genExpr(fa.object));
     const std::string field_ptr = freshValue();
     m_body << "  " << field_ptr << " = getelementptr %struct."
            << mangleStruct(qname) << ", ptr " << obj_addr << ", i32 0, i32 "
@@ -1076,8 +1077,8 @@ Codegen::Value Codegen::genStructLit(const Parser::StructLiteral& sl,
         v = emitConversion(v, field_t, false, field.loc);
 
         const std::string ptr = freshValue();
-        m_body << "  " << ptr << " = getelementptr " << st << ", ptr "
-               << addr << ", i32 0, i32 " << idx << "\n";
+        m_body << "  " << ptr << " = getelementptr " << st << ", ptr " << addr
+               << ", i32 0, i32 " << idx << "\n";
         storeValue(field_t, v.ssa, ptr);
     }
 
@@ -1123,10 +1124,10 @@ Codegen::Value Codegen::genBuiltinPrint(const Parser::CallExpr& c) {
         case TK::STRING: {
             const std::string ptr = freshValue();
             const std::string len = freshValue();
-            m_body << "  " << ptr << " = extractvalue { ptr, i64 } "
-                   << v.ssa << ", 0\n";
-            m_body << "  " << len << " = extractvalue { ptr, i64 } "
-                   << v.ssa << ", 1\n";
+            m_body << "  " << ptr << " = extractvalue { ptr, i64 } " << v.ssa
+                   << ", 0\n";
+            m_body << "  " << len << " = extractvalue { ptr, i64 } " << v.ssa
+                   << ", 1\n";
             m_body << "  call void @bina_print_str(ptr " << ptr << ", i64 "
                    << len << ")\n";
             break;
@@ -1172,8 +1173,8 @@ Codegen::Value Codegen::genBuiltinLen(const Parser::CallExpr& c) {
 Codegen::Value Codegen::genBuiltinAssert(const Parser::CallExpr& c,
                                          Parser::NodeLocation loc) {
     Value v = genExpr(c.args[0]);
-    m_body << "  call void @bina_assert(i1 " << v.ssa << ", i64 "
-           << loc.line << ")\n";
+    m_body << "  call void @bina_assert(i1 " << v.ssa << ", i64 " << loc.line
+           << ")\n";
     return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
 }
 
@@ -1187,8 +1188,8 @@ Codegen::Value Codegen::genBuiltinCode(const Parser::CallExpr& c) {
 Codegen::Value Codegen::genBuiltinCharFrom(const Parser::CallExpr& c,
                                            Parser::NodeLocation loc) {
     Value v = genExpr(c.args[0]);
-    Value w = emitConversion(v, Semantic::makePrimitive(Semantic::TypeKind::INT64),
-                             false, loc);
+    Value w = emitConversion(
+        v, Semantic::makePrimitive(Semantic::TypeKind::INT64), false, loc);
     const std::string ssa = freshValue();
     m_body << "  " << ssa << " = call i32 @bina_char_from(i64 " << w.ssa
            << ", i64 " << loc.line << ")\n";
@@ -1197,8 +1198,9 @@ Codegen::Value Codegen::genBuiltinCharFrom(const Parser::CallExpr& c,
 
 Codegen::Value Codegen::genBuiltinExit(const Parser::CallExpr& c) {
     Value v = genExpr(c.args[0]);
-    Value w = emitConversion(v, Semantic::makePrimitive(Semantic::TypeKind::INT64),
-                             false, c.args[0].loc);
+    Value w =
+        emitConversion(v, Semantic::makePrimitive(Semantic::TypeKind::INT64),
+                       false, c.args[0].loc);
     m_body << "  call void @bina_exit(i64 " << w.ssa << ")\n";
     emitTerminator("unreachable");
     return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
@@ -1224,7 +1226,8 @@ std::string Codegen::genLvalueAddr(const Parser::Expr& e) {
         overloaded{
             [&](const Parser::Identifier& id) -> std::string {
                 if (id.parts.size() != 1) {
-                    internalError("qualified identifier lvalue reached codegen");
+                    internalError(
+                        "qualified identifier lvalue reached codegen");
                 }
                 const LocalSlot* slot = envLookup(id.parts[0]);
                 if (slot == nullptr) {
@@ -1242,18 +1245,16 @@ std::string Codegen::genLvalueAddr(const Parser::Expr& e) {
                     idx, Semantic::makePrimitive(Semantic::TypeKind::INT64));
                 emitBoundsCheck(i64_idx, array.size, ix->index.loc);
                 const std::string ptr = freshValue();
-                m_body << "  " << ptr << " = getelementptr "
-                       << llvmType(arr_t) << ", ptr " << arr_addr
-                       << ", i64 0, i64 " << i64_idx << "\n";
+                m_body << "  " << ptr << " = getelementptr " << llvmType(arr_t)
+                       << ", ptr " << arr_addr << ", i64 0, i64 " << i64_idx
+                       << "\n";
                 return ptr;
             },
-            [&](const std::unique_ptr<Parser::FieldAccess>& fa)
-                -> std::string {
+            [&](const std::unique_ptr<Parser::FieldAccess>& fa) -> std::string {
                 const std::string obj_addr = genLvalueAddr(fa->object);
                 const Semantic::Type obj_t = exprType(fa->object);
                 const std::string& qname =
-                    std::get<Semantic::StructTypeInfo>(obj_t.data)
-                        .struct_name;
+                    std::get<Semantic::StructTypeInfo>(obj_t.data).struct_name;
                 const Semantic::StructSymbol* structure =
                     findStructByQualifiedName(qname);
                 if (structure == nullptr) {
@@ -1307,8 +1308,8 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
         Value lhs = loadValueAtAddr(t, lhs_ptr);
         Value rhs = loadValueAtAddr(t, rhs_ptr);
         const std::string eq = freshValue();
-        m_body << "  " << eq << " = icmp eq " << llvmType(t) << " "
-               << lhs.ssa << ", " << rhs.ssa << "\n";
+        m_body << "  " << eq << " = icmp eq " << llvmType(t) << " " << lhs.ssa
+               << ", " << rhs.ssa << "\n";
         return {eq, Semantic::makePrimitive(TK::BOOL)};
     }
 
@@ -1316,8 +1317,8 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
         Value lhs = loadValueAtAddr(t, lhs_ptr);
         Value rhs = loadValueAtAddr(t, rhs_ptr);
         const std::string eq = freshValue();
-        m_body << "  " << eq << " = fcmp oeq " << llvmType(t) << " "
-               << lhs.ssa << ", " << rhs.ssa << "\n";
+        m_body << "  " << eq << " = fcmp oeq " << llvmType(t) << " " << lhs.ssa
+               << ", " << rhs.ssa << "\n";
         return {eq, Semantic::makePrimitive(TK::BOOL)};
     }
 
@@ -1325,9 +1326,8 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
         Value lhs = loadValueAtAddr(t, lhs_ptr);
         Value rhs = loadValueAtAddr(t, rhs_ptr);
         const std::string eq = freshValue();
-        m_body << "  " << eq
-               << " = call i1 @bina_str_eq({ ptr, i64 } " << lhs.ssa
-               << ", { ptr, i64 } " << rhs.ssa << ")\n";
+        m_body << "  " << eq << " = call i1 @bina_str_eq({ ptr, i64 } "
+               << lhs.ssa << ", { ptr, i64 } " << rhs.ssa << ")\n";
         return {eq, Semantic::makePrimitive(TK::BOOL)};
     }
 
@@ -1345,8 +1345,8 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
                    << ", ptr " << rhs_ptr << ", i64 0, i64 " << i << "\n";
             Value elem_eq = genCompareEq(elem_t, lp, rp);
             const std::string next = freshValue();
-            m_body << "  " << next << " = and i1 " << acc << ", "
-                   << elem_eq.ssa << "\n";
+            m_body << "  " << next << " = and i1 " << acc << ", " << elem_eq.ssa
+                   << "\n";
             acc = next;
         }
         return {acc, Semantic::makePrimitive(TK::BOOL)};
@@ -1453,9 +1453,9 @@ std::string Codegen::llvmType(const Semantic::Type& t) {
                    llvmStoredType(*array.element_type) + "]";
         }
         case TK::STRUCT:
-            return "%struct." + mangleStruct(
-                                    std::get<Semantic::StructTypeInfo>(t.data)
-                                        .struct_name);
+            return "%struct." +
+                   mangleStruct(
+                       std::get<Semantic::StructTypeInfo>(t.data).struct_name);
         case TK::ERROR:
             internalError("error type reached codegen");
     }
@@ -1524,9 +1524,9 @@ std::string Codegen::mangleType(const Semantic::Type& t) {
                    mangleType(*array.element_type);
         }
         case TK::STRUCT:
-            return "S." + mangleStruct(
-                              std::get<Semantic::StructTypeInfo>(t.data)
-                                  .struct_name);
+            return "S." +
+                   mangleStruct(
+                       std::get<Semantic::StructTypeInfo>(t.data).struct_name);
         case TK::ERROR:
             internalError("error type reached mangling");
     }
@@ -1569,11 +1569,11 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
         if (from_bits == to_bits) return {v.ssa, to};
 
         const std::string ssa = freshValue();
-        const std::string op =
-            to_bits > from_bits ? (isSigned(from_k) ? "sext" : "zext")
-                                : "trunc";
-        m_body << "  " << ssa << " = " << op << " " << llvmType(v.type)
-               << " " << v.ssa << " to " << llvmType(to) << "\n";
+        const std::string op = to_bits > from_bits
+                                   ? (isSigned(from_k) ? "sext" : "zext")
+                                   : "trunc";
+        m_body << "  " << ssa << " = " << op << " " << llvmType(v.type) << " "
+               << v.ssa << " to " << llvmType(to) << "\n";
         return {ssa, to};
     }
 
@@ -1581,8 +1581,8 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
         const std::string ssa = freshValue();
         m_body << "  " << ssa << " = "
                << (isSigned(from_k) ? "sitofp" : "uitofp") << " "
-               << llvmType(v.type) << " " << v.ssa << " to "
-               << llvmType(to) << "\n";
+               << llvmType(v.type) << " " << v.ssa << " to " << llvmType(to)
+               << "\n";
         return {ssa, to};
     }
 
@@ -1599,9 +1599,8 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
         emitFloatToIntRangeCheck(dval, to_k, loc);
 
         const std::string ssa = freshValue();
-        m_body << "  " << ssa << " = "
-               << (isSigned(to_k) ? "fptosi" : "fptoui") << " double " << dval
-               << " to " << llvmType(to) << "\n";
+        m_body << "  " << ssa << " = " << (isSigned(to_k) ? "fptosi" : "fptoui")
+               << " double " << dval << " to " << llvmType(to) << "\n";
         return {ssa, to};
     }
 
@@ -1611,8 +1610,8 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
         const std::string ssa = freshValue();
         m_body << "  " << ssa << " = "
                << (to_bits > from_bits ? "fpext" : "fptrunc") << " "
-               << llvmType(v.type) << " " << v.ssa << " to "
-               << llvmType(to) << "\n";
+               << llvmType(v.type) << " " << v.ssa << " to " << llvmType(to)
+               << "\n";
         return {ssa, to};
     }
 
@@ -1636,20 +1635,19 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
             Value wide = emitConversion(v, Semantic::makePrimitive(wide_kind),
                                         false, loc);
             const std::string ssa = freshValue();
-            const char* fn =
-                isSigned(from_k) ? "@bina_to_string_i64"
-                                 : "@bina_to_string_u64";
-            m_body << "  " << ssa << " = call { ptr, i64 } " << fn
-                   << "(i64 " << wide.ssa << ")\n";
+            const char* fn = isSigned(from_k) ? "@bina_to_string_i64"
+                                              : "@bina_to_string_u64";
+            m_body << "  " << ssa << " = call { ptr, i64 } " << fn << "(i64 "
+                   << wide.ssa << ")\n";
             return {ssa, to};
         }
 
-        Value wide = emitConversion(v, Semantic::makePrimitive(TK::FLOAT64),
-                                    false, loc);
+        Value wide =
+            emitConversion(v, Semantic::makePrimitive(TK::FLOAT64), false, loc);
         const std::string ssa = freshValue();
         m_body << "  " << ssa
-               << " = call { ptr, i64 } @bina_to_string_f64(double "
-               << wide.ssa << ")\n";
+               << " = call { ptr, i64 } @bina_to_string_f64(double " << wide.ssa
+               << ")\n";
         return {ssa, to};
     }
 
@@ -1658,17 +1656,16 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
             const std::string parsed = freshValue();
             const char* fn =
                 isSigned(to_k) ? "@bina_parse_i64" : "@bina_parse_u64";
-            m_body << "  " << parsed << " = call i64 " << fn
-                   << "({ ptr, i64 } " << v.ssa << ", i64 " << loc.line
-                   << ")\n";
+            m_body << "  " << parsed << " = call i64 " << fn << "({ ptr, i64 } "
+                   << v.ssa << ", i64 " << loc.line << ")\n";
 
             const int to_bits = bitWidth(to_k);
             if (to_bits < 64) emitRangeCheck(parsed, to_k, loc);
 
             if (to_bits < 64) {
                 const std::string ssa = freshValue();
-                m_body << "  " << ssa << " = trunc i64 " << parsed
-                       << " to " << llvmType(to) << "\n";
+                m_body << "  " << ssa << " = trunc i64 " << parsed << " to "
+                       << llvmType(to) << "\n";
                 return {ssa, to};
             }
             return {parsed, to};
@@ -1687,39 +1684,38 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
         return {parsed, to};
     }
 
-    internalError("unsupported conversion from " + Semantic::typeToString(v.type) +
-                  " to " + Semantic::typeToString(to));
+    internalError("unsupported conversion from " +
+                  Semantic::typeToString(v.type) + " to " +
+                  Semantic::typeToString(to));
 }
 
 std::string Codegen::convertNumeric(Value v, const Semantic::Type& to) {
     return emitConversion(v, to, false, {}).ssa;
 }
 
-Codegen::Value Codegen::makeBinOp(std::string_view op,
-                                  std::string_view llvm_ty,
-                                  std::string_view lhs,
-                                  std::string_view rhs,
+Codegen::Value Codegen::makeBinOp(std::string_view op, std::string_view llvm_ty,
+                                  std::string_view lhs, std::string_view rhs,
                                   const Semantic::Type& result_t) {
     const std::string ssa = freshValue();
-    m_body << "  " << ssa << " = " << op << " " << llvm_ty << " " << lhs
-           << ", " << rhs << "\n";
+    m_body << "  " << ssa << " = " << op << " " << llvm_ty << " " << lhs << ", "
+           << rhs << "\n";
     return {ssa, result_t};
 }
 
-Codegen::Value Codegen::emitCheckedAddSubMul(
-    std::string_view base_op, const Semantic::Type& t, const std::string& lhs,
-    const std::string& rhs, Parser::NodeLocation loc) {
+Codegen::Value Codegen::emitCheckedAddSubMul(std::string_view base_op,
+                                             const Semantic::Type& t,
+                                             const std::string& lhs,
+                                             const std::string& rhs,
+                                             Parser::NodeLocation loc) {
     const char sign = isSigned(t.kind) ? 's' : 'u';
     const std::string ty = llvmType(t);
     const std::string intrinsic = "@llvm." + std::string(1, sign) +
-                                  std::string(base_op) +
-                                  ".with.overflow." + ty;
+                                  std::string(base_op) + ".with.overflow." + ty;
     const std::string ret_ty = "{ " + ty + ", i1 }";
 
     const std::string pair = freshValue();
-    m_body << "  " << pair << " = call " << ret_ty << " " << intrinsic
-           << "(" << ty << " " << lhs << ", " << ty << " " << rhs
-           << ")\n";
+    m_body << "  " << pair << " = call " << ret_ty << " " << intrinsic << "("
+           << ty << " " << lhs << ", " << ty << " " << rhs << ")\n";
 
     const std::string val = freshValue();
     const std::string ovf = freshValue();
@@ -1771,15 +1767,13 @@ void Codegen::emitSignedDivOverflowCheck(const std::string& lhs,
     const std::string bad_cond = freshValue();
     m_body << "  " << is_min << " = icmp eq " << ty << " " << lhs << ", "
            << min_value << "\n";
-    m_body << "  " << is_neg1 << " = icmp eq " << ty << " " << rhs
-           << ", -1\n";
-    m_body << "  " << bad_cond << " = and i1 " << is_min << ", "
-           << is_neg1 << "\n";
+    m_body << "  " << is_neg1 << " = icmp eq " << ty << " " << rhs << ", -1\n";
+    m_body << "  " << bad_cond << " = and i1 " << is_min << ", " << is_neg1
+           << "\n";
 
     const std::string bad = freshLabel("div.ovf");
     const std::string ok = freshLabel("div.ok");
-    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" +
-                   ok);
+    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" + ok);
 
     startLabel(bad);
     m_body << "  call void @bina_int_overflow(i64 " << loc.line << ")\n";
@@ -1794,14 +1788,12 @@ void Codegen::emitBoundsCheck(const std::string& index, std::size_t len,
     const std::string hi = freshValue();
     const std::string bad_cond = freshValue();
     m_body << "  " << lo << " = icmp slt i64 " << index << ", 0\n";
-    m_body << "  " << hi << " = icmp sge i64 " << index << ", " << len
-           << "\n";
+    m_body << "  " << hi << " = icmp sge i64 " << index << ", " << len << "\n";
     m_body << "  " << bad_cond << " = or i1 " << lo << ", " << hi << "\n";
 
     const std::string bad = freshLabel("idx.bad");
     const std::string ok = freshLabel("idx.ok");
-    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" +
-                   ok);
+    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" + ok);
 
     startLabel(bad);
     m_body << "  call void @bina_index_oob(i64 " << index << ", i64 " << len
@@ -1811,8 +1803,7 @@ void Codegen::emitBoundsCheck(const std::string& index, std::size_t len,
     startLabel(ok);
 }
 
-void Codegen::emitRangeCheck(const std::string& i64_val,
-                             Semantic::TypeKind to,
+void Codegen::emitRangeCheck(const std::string& i64_val, Semantic::TypeKind to,
                              Parser::NodeLocation loc) {
     const auto [lo_bound, hi_bound] = integerBounds(to);
     std::string bad_cond;
@@ -1825,18 +1816,16 @@ void Codegen::emitRangeCheck(const std::string& i64_val,
                << lo_bound << "\n";
         m_body << "  " << hi << " = icmp sgt i64 " << i64_val << ", "
                << hi_bound << "\n";
-        m_body << "  " << bad_cond << " = or i1 " << lo << ", " << hi
-               << "\n";
+        m_body << "  " << bad_cond << " = or i1 " << lo << ", " << hi << "\n";
     } else {
         bad_cond = freshValue();
-        m_body << "  " << bad_cond << " = icmp ugt i64 " << i64_val
-               << ", " << hi_bound << "\n";
+        m_body << "  " << bad_cond << " = icmp ugt i64 " << i64_val << ", "
+               << hi_bound << "\n";
     }
 
     const std::string bad = freshLabel("range.bad");
     const std::string ok = freshLabel("range.ok");
-    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" +
-                   ok);
+    emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" + ok);
 
     startLabel(bad);
     m_body << "  call void @bina_int_overflow(i64 " << loc.line << ")\n";
@@ -1850,10 +1839,6 @@ void Codegen::emitFloatToIntRangeCheck(const std::string& dval,
                                        Parser::NodeLocation loc) {
     using TK = Semantic::TypeKind;
 
-    // Условие корректности: trunc(d) попадает в диапазон целевого типа.
-    // Для знаковых N-битных: -(2^(N-1))-1 < d < 2^(N-1); для int64 нижняя
-    // граница -(2^63)-1 непредставима в double, поэтому d >= -(2^63).
-    // Для беззнаковых: -1 < d < 2^N. NaN не проходит ordered-сравнения.
     double lo = 0.0;
     double hi = 0.0;
     const char* lo_pred = "ogt";
@@ -1902,8 +1887,7 @@ void Codegen::emitFloatToIntRangeCheck(const std::string& dval,
            << ", " << doubleHex(lo) << "\n";
     m_body << "  " << below << " = fcmp olt double " << dval << ", "
            << doubleHex(hi) << "\n";
-    m_body << "  " << ok_cond << " = and i1 " << above << ", " << below
-           << "\n";
+    m_body << "  " << ok_cond << " = and i1 " << above << ", " << below << "\n";
 
     const std::string bad = freshLabel("fcast.bad");
     const std::string ok = freshLabel("fcast.ok");
@@ -1956,8 +1940,8 @@ void Codegen::emitPrintArray(const Semantic::Type& at,
     for (std::size_t i = 0; i < info.size; ++i) {
         if (i > 0) emitPrintLiteralString(", ");
         const std::string ptr = freshValue();
-        m_body << "  " << ptr << " = getelementptr " << llvmType(at)
-               << ", ptr " << addr << ", i64 0, i64 " << i << "\n";
+        m_body << "  " << ptr << " = getelementptr " << llvmType(at) << ", ptr "
+               << addr << ", i64 0, i64 " << i << "\n";
         emitPrintValueAtAddr(elem_t, ptr);
     }
     emitPrintLiteralString("]");
@@ -1968,12 +1952,13 @@ void Codegen::emitPrintStruct(const Semantic::Type& st,
     const auto& info = std::get<Semantic::StructTypeInfo>(st.data);
     const Semantic::StructSymbol* structure =
         findStructByQualifiedName(info.struct_name);
-    if (structure == nullptr) internalError("missing struct " + info.struct_name);
+    if (structure == nullptr)
+        internalError("missing struct " + info.struct_name);
 
     const std::size_t sep = info.struct_name.rfind("::");
-    const std::string short_name =
-        sep == std::string::npos ? info.struct_name
-                                 : info.struct_name.substr(sep + 2);
+    const std::string short_name = sep == std::string::npos
+                                       ? info.struct_name
+                                       : info.struct_name.substr(sep + 2);
     emitPrintLiteralString(short_name + " { ");
 
     const std::string llvm_st = "%struct." + mangleStruct(info.struct_name);
@@ -1981,8 +1966,8 @@ void Codegen::emitPrintStruct(const Semantic::Type& st,
         if (i > 0) emitPrintLiteralString(", ");
         emitPrintLiteralString(structure->fields[i].first + ": ");
         const std::string ptr = freshValue();
-        m_body << "  " << ptr << " = getelementptr " << llvm_st
-               << ", ptr " << addr << ", i32 0, i32 " << i << "\n";
+        m_body << "  " << ptr << " = getelementptr " << llvm_st << ", ptr "
+               << addr << ", i32 0, i32 " << i << "\n";
         emitPrintValueAtAddr(structure->fields[i].second, ptr);
     }
 
@@ -2012,8 +1997,8 @@ void Codegen::emitPrintScalarSsa(const Semantic::Type& t,
         case TK::INT16:
         case TK::INT32:
         case TK::INT64: {
-            Value w = emitConversion({ssa, t}, Semantic::makePrimitive(TK::INT64),
-                                     false, {});
+            Value w = emitConversion(
+                {ssa, t}, Semantic::makePrimitive(TK::INT64), false, {});
             m_body << "  call void @bina_print_i64(i64 " << w.ssa << ")\n";
             return;
         }
@@ -2021,15 +2006,15 @@ void Codegen::emitPrintScalarSsa(const Semantic::Type& t,
         case TK::UINT16:
         case TK::UINT32:
         case TK::UINT64: {
-            Value w = emitConversion({ssa, t}, Semantic::makePrimitive(TK::UINT64),
-                                     false, {});
+            Value w = emitConversion(
+                {ssa, t}, Semantic::makePrimitive(TK::UINT64), false, {});
             m_body << "  call void @bina_print_u64(i64 " << w.ssa << ")\n";
             return;
         }
         case TK::FLOAT32:
         case TK::FLOAT64: {
-            Value w = emitConversion({ssa, t}, Semantic::makePrimitive(TK::FLOAT64),
-                                     false, {});
+            Value w = emitConversion(
+                {ssa, t}, Semantic::makePrimitive(TK::FLOAT64), false, {});
             m_body << "  call void @bina_print_f64(double " << w.ssa << ")\n";
             return;
         }
@@ -2088,15 +2073,14 @@ Codegen::Value Codegen::loadValueAtAddr(const Semantic::Type& t,
     }
 
     const std::string ssa = freshValue();
-    m_body << "  " << ssa << " = load " << llvmStoredType(t) << ", ptr "
-           << addr << "\n";
+    m_body << "  " << ssa << " = load " << llvmStoredType(t) << ", ptr " << addr
+           << "\n";
     return {ssa, t};
 }
 
 bool Codegen::isSigned(Semantic::TypeKind k) {
     using TK = Semantic::TypeKind;
-    return k == TK::INT8 || k == TK::INT16 || k == TK::INT32 ||
-           k == TK::INT64;
+    return k == TK::INT8 || k == TK::INT16 || k == TK::INT32 || k == TK::INT64;
 }
 
 int Codegen::bitWidth(Semantic::TypeKind k) {
@@ -2150,7 +2134,8 @@ const Semantic::FunctionSignature* Codegen::findSignatureForFunctionDecl(
     if (!ns.empty()) {
         auto found = scope->findByPath(ns);
         if (!found) return nullptr;
-        const auto* ns_scope = std::get_if<const Semantic::Scope*>(&found.value());
+        const auto* ns_scope =
+            std::get_if<const Semantic::Scope*>(&found.value());
         if (ns_scope == nullptr) return nullptr;
         scope = *ns_scope;
     }
@@ -2168,7 +2153,8 @@ const Semantic::FunctionSignature* Codegen::findSignatureForMethodDecl(
     if (!ns.empty()) {
         auto found = scope->findByPath(ns);
         if (!found) return nullptr;
-        const auto* ns_scope = std::get_if<const Semantic::Scope*>(&found.value());
+        const auto* ns_scope =
+            std::get_if<const Semantic::Scope*>(&found.value());
         if (ns_scope == nullptr) return nullptr;
         scope = *ns_scope;
     }
@@ -2210,8 +2196,7 @@ void Codegen::envDeclare(const std::string& name, std::string addr,
     m_env.back()[name] = LocalSlot{std::move(addr), std::move(type)};
 }
 
-const Codegen::LocalSlot* Codegen::envLookup(
-    const std::string& name) const {
+const Codegen::LocalSlot* Codegen::envLookup(const std::string& name) const {
     for (auto it = m_env.rbegin(); it != m_env.rend(); ++it) {
         auto found = it->find(name);
         if (found != it->end()) return &found->second;
