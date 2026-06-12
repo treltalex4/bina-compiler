@@ -32,6 +32,7 @@ class Semantic {
     std::unordered_set<const TypeAliasSymbol*> m_resolving_aliases;
     std::unordered_set<std::string> m_impl_structs;
     std::vector<std::string> m_current_namespace;
+    std::string m_current_impl_struct;
 
     Scope* m_current_scope = nullptr;
     Type m_current_return_type = makeError();
