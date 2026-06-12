@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (output.empty()) {
-        output = std::filesystem::path(filename).stem().string();
+        output = std::filesystem::path(filename).stem().string() + ".out";
     }
 
     Driver::BuildOptions build_options{

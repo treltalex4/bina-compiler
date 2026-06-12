@@ -174,6 +174,14 @@ std::string floatConstantText(const std::string& literal,
 
 }
 
+std::string doubleHex(double value) {
+    const std::uint64_t bits = std::bit_cast<std::uint64_t>(value);
+    std::ostringstream hex;
+    hex << "0x" << std::uppercase << std::hex << std::setw(16)
+        << std::setfill('0') << bits;
+    return hex.str();
+}
+
 std::pair<std::string, std::string> integerBounds(
     Semantic::TypeKind kind) {
     using TK = Semantic::TypeKind;
@@ -381,7 +389,6 @@ void Codegen::emitFunctions() {
 
 void Codegen::emitFunction(const Parser::FunctionDecl& fn,
                            const Semantic::FunctionSignature& sig) {
-    m_emit = &m_body;
     m_value_id = 0;
     m_label_id = 0;
     m_local_addrs.clear();
@@ -389,6 +396,7 @@ void Codegen::emitFunction(const Parser::FunctionDecl& fn,
     m_loop_stack.clear();
     m_block_terminated = false;
     m_current_return_type = sig.return_type;
+    m_alloca_lines.clear();
 
     const std::string mangled = mangle(sig);
     m_in_main = (mangled == "@main");
@@ -396,22 +404,18 @@ void Codegen::emitFunction(const Parser::FunctionDecl& fn,
     const std::string ret_llvm =
         m_in_main ? "i32" : llvmType(sig.return_type);
 
-    m_body << "define " << ret_llvm << " " << mangled << "(";
-    for (std::size_t i = 0; i < sig.param_types.size(); ++i) {
-        if (i > 0) m_body << ", ";
-        m_body << llvmType(sig.param_types[i]) << " %arg."
-               << sanitizeIdent(sig.param_names[i]);
-    }
-    m_body << ") {\n";
-    startLabel("entry");
+    // Тело генерируется в отдельный буфер: все alloca собираются в
+    // m_alloca_lines и затем вставляются в начало entry-блока, чтобы
+    // alloca внутри циклов не наращивали стек на каждой итерации.
+    std::ostringstream module_text = std::move(m_body);
+    m_body = std::ostringstream{};
+    m_current_label = "entry";
 
     envPush();
     for (std::size_t i = 0; i < fn.params.size(); ++i) {
         const auto& param = fn.params[i];
         const Semantic::Type& type = sig.param_types[i];
-        const std::string addr = freshLocalAddr(param.name);
-        m_body << "  " << addr << " = alloca " << llvmStoredType(type)
-               << "\n";
+        const std::string addr = emitEntryAlloca(param.name, type);
         storeValue(type, "%arg." + sanitizeIdent(sig.param_names[i]), addr);
         envDeclare(param.name, addr, type, &param);
     }
@@ -429,6 +433,20 @@ void Codegen::emitFunction(const Parser::FunctionDecl& fn,
     }
 
     envPop();
+
+    const std::string body_text = m_body.str();
+    m_body = std::move(module_text);
+
+    m_body << "define " << ret_llvm << " " << mangled << "(";
+    for (std::size_t i = 0; i < sig.param_types.size(); ++i) {
+        if (i > 0) m_body << ", ";
+        m_body << llvmType(sig.param_types[i]) << " %arg."
+               << sanitizeIdent(sig.param_names[i]);
+    }
+    m_body << ") {\n";
+    m_body << "entry:\n";
+    for (const std::string& line : m_alloca_lines) m_body << line;
+    m_body << body_text;
     m_body << "}\n\n";
 }
 
@@ -465,12 +483,14 @@ void Codegen::genStmt(const Parser::Stmt& s) {
 
 void Codegen::genLet(const Parser::LetStmt& l, Parser::NodeLocation) {
     const Semantic::Type type = m_typed.decl_types.at(&l);
-    const std::string addr = freshLocalAddr(l.name);
-    m_body << "  " << addr << " = alloca " << llvmStoredType(type) << "\n";
-    envDeclare(l.name, addr, type, &l);
 
+    // Инициализатор вычисляется до объявления имени: в `let x = x + 1;`
+    // правый x должен резолвиться во внешнюю (затеняемую) переменную.
     Value init = genExpr(l.init);
     init = emitConversion(init, type, false, l.init.loc);
+
+    const std::string addr = emitEntryAlloca(l.name, type);
+    envDeclare(l.name, addr, type, &l);
     storeValue(type, init.ssa, addr);
 }
 
@@ -1021,8 +1041,7 @@ Codegen::Value Codegen::genArrayLit(const Parser::Expr& wrap,
     const auto& info = std::get<Semantic::ArrayTypeInfo>(array_t.data);
     const Semantic::Type& elem_t = *info.element_type;
 
-    const std::string addr = freshValue();
-    m_body << "  " << addr << " = alloca " << llvmType(array_t) << "\n";
+    const std::string addr = emitEntryAlloca("arr.lit", array_t);
 
     for (std::size_t i = 0; i < al.elements.size(); ++i) {
         Value v = genExpr(al.elements[i]);
@@ -1047,8 +1066,7 @@ Codegen::Value Codegen::genStructLit(const Parser::StructLiteral& sl,
     }
 
     const std::string st = "%struct." + mangleStruct(info.struct_name);
-    const std::string addr = freshValue();
-    m_body << "  " << addr << " = alloca " << st << "\n";
+    const std::string addr = emitEntryAlloca("struct.lit", result_t);
 
     for (const auto& field : sl.fields) {
         const int idx = structFieldIndex(*structure, field.name);
@@ -1267,9 +1285,16 @@ bool Codegen::isLvalueExpr(const Parser::Expr& e) {
 }
 
 std::string Codegen::materializeAddr(const Value& v) {
-    const std::string addr = freshValue();
-    m_body << "  " << addr << " = alloca " << llvmStoredType(v.type) << "\n";
+    const std::string addr = emitEntryAlloca("tmp", v.type);
     storeValue(v.type, v.ssa, addr);
+    return addr;
+}
+
+std::string Codegen::emitEntryAlloca(std::string_view source_name,
+                                     const Semantic::Type& t) {
+    const std::string addr = freshLocalAddr(source_name);
+    m_alloca_lines.push_back("  " + addr + " = alloca " + llvmStoredType(t) +
+                             "\n");
     return addr;
 }
 
@@ -1562,11 +1587,21 @@ Codegen::Value Codegen::emitConversion(Value v, const Semantic::Type& to,
     }
 
     if (Semantic::isFloat(v.type) && Semantic::isInteger(to)) {
+        // fptosi/fptoui вне диапазона целевого типа дают poison, поэтому
+        // проверяем диапазон (и NaN) заранее; проверка ведётся в double,
+        // где границы всех целевых типов представимы точно.
+        std::string dval = v.ssa;
+        if (from_k == TK::FLOAT32) {
+            dval = freshValue();
+            m_body << "  " << dval << " = fpext float " << v.ssa
+                   << " to double\n";
+        }
+        emitFloatToIntRangeCheck(dval, to_k, loc);
+
         const std::string ssa = freshValue();
         m_body << "  " << ssa << " = "
-               << (isSigned(to_k) ? "fptosi" : "fptoui") << " "
-               << llvmType(v.type) << " " << v.ssa << " to "
-               << llvmType(to) << "\n";
+               << (isSigned(to_k) ? "fptosi" : "fptoui") << " double " << dval
+               << " to " << llvmType(to) << "\n";
         return {ssa, to};
     }
 
@@ -1802,6 +1837,77 @@ void Codegen::emitRangeCheck(const std::string& i64_val,
     const std::string ok = freshLabel("range.ok");
     emitTerminator("br i1 " + bad_cond + ", label %" + bad + ", label %" +
                    ok);
+
+    startLabel(bad);
+    m_body << "  call void @bina_int_overflow(i64 " << loc.line << ")\n";
+    emitTerminator("unreachable");
+
+    startLabel(ok);
+}
+
+void Codegen::emitFloatToIntRangeCheck(const std::string& dval,
+                                       Semantic::TypeKind to,
+                                       Parser::NodeLocation loc) {
+    using TK = Semantic::TypeKind;
+
+    // Условие корректности: trunc(d) попадает в диапазон целевого типа.
+    // Для знаковых N-битных: -(2^(N-1))-1 < d < 2^(N-1); для int64 нижняя
+    // граница -(2^63)-1 непредставима в double, поэтому d >= -(2^63).
+    // Для беззнаковых: -1 < d < 2^N. NaN не проходит ordered-сравнения.
+    double lo = 0.0;
+    double hi = 0.0;
+    const char* lo_pred = "ogt";
+    switch (to) {
+        case TK::INT8:
+            lo = -129.0;
+            hi = 128.0;
+            break;
+        case TK::INT16:
+            lo = -32769.0;
+            hi = 32768.0;
+            break;
+        case TK::INT32:
+            lo = -2147483649.0;
+            hi = 2147483648.0;
+            break;
+        case TK::INT64:
+            lo = -9223372036854775808.0;
+            hi = 9223372036854775808.0;
+            lo_pred = "oge";
+            break;
+        case TK::UINT8:
+            lo = -1.0;
+            hi = 256.0;
+            break;
+        case TK::UINT16:
+            lo = -1.0;
+            hi = 65536.0;
+            break;
+        case TK::UINT32:
+            lo = -1.0;
+            hi = 4294967296.0;
+            break;
+        case TK::UINT64:
+            lo = -1.0;
+            hi = 18446744073709551616.0;
+            break;
+        default:
+            internalError("float-to-int range check for non-integer type");
+    }
+
+    const std::string above = freshValue();
+    const std::string below = freshValue();
+    const std::string ok_cond = freshValue();
+    m_body << "  " << above << " = fcmp " << lo_pred << " double " << dval
+           << ", " << doubleHex(lo) << "\n";
+    m_body << "  " << below << " = fcmp olt double " << dval << ", "
+           << doubleHex(hi) << "\n";
+    m_body << "  " << ok_cond << " = and i1 " << above << ", " << below
+           << "\n";
+
+    const std::string bad = freshLabel("fcast.bad");
+    const std::string ok = freshLabel("fcast.ok");
+    emitTerminator("br i1 " + ok_cond + ", label %" + ok + ", label %" + bad);
 
     startLabel(bad);
     m_body << "  call void @bina_int_overflow(i64 " << loc.line << ")\n";

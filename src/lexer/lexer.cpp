@@ -549,6 +549,12 @@ std::expected<std::vector<Token>, std::string> Lexer::tokenize() {
         else if (c == '"') {
             std::string str;
             while (!isEnd() && peek() != '"') {
+                if (peek() == '\n' || peek() == '\r') {
+                    return std::unexpected(m_filename + ":" +
+                                           std::to_string(startLine) + ":" +
+                                           std::to_string(startCol) +
+                                           ": error: unterminated string");
+                }
                 if (peek() == '\\') {
                     advance();
                     if (isEnd()) {

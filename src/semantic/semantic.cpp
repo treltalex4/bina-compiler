@@ -250,13 +250,13 @@ std::string integerMagnitudeLimit(TypeKind kind, bool negated) {
         case TypeKind::INT64:
             return negated ? "9223372036854775808" : "9223372036854775807";
         case TypeKind::UINT8:
-            return "255";
+            return negated ? "0" : "255";
         case TypeKind::UINT16:
-            return "65535";
+            return negated ? "0" : "65535";
         case TypeKind::UINT32:
-            return "4294967295";
+            return negated ? "0" : "4294967295";
         case TypeKind::UINT64:
-            return "18446744073709551615";
+            return negated ? "0" : "18446744073709551615";
         default:
             return "0";
     }
@@ -278,7 +278,8 @@ std::expected<Type, std::string> intLiteralType(const std::string& value,
     std::string magnitude =
         literalDigitsToDecimal(parsed->digits, parsed->base);
     if (!decimalLessEqual(magnitude, integerMagnitudeLimit(kind, negated))) {
-        return std::unexpected("integer literal '" + value +
+        return std::unexpected("integer literal '" +
+                               std::string(negated ? "-" : "") + value +
                                "' is out of range for " +
                                typeToString(makePrimitive(kind)));
     }
@@ -293,8 +294,7 @@ std::expected<std::size_t, std::string> parseArraySizeLiteral(
 
     std::string magnitude =
         literalDigitsToDecimal(parsed->digits, parsed->base);
-    std::string limit =
-        std::to_string(std::numeric_limits<std::size_t>::max());
+    std::string limit = std::to_string(std::numeric_limits<std::size_t>::max());
     if (!decimalLessEqual(magnitude, limit)) {
         return std::unexpected("array size is too large");
     }
@@ -302,6 +302,9 @@ std::expected<std::size_t, std::string> parseArraySizeLiteral(
     std::size_t result = 0;
     for (char c : trimLeadingZeros(std::move(magnitude))) {
         result = result * 10 + static_cast<std::size_t>(c - '0');
+    }
+    if (result == 0) {
+        return std::unexpected("array size must be positive");
     }
     return result;
 }
@@ -372,8 +375,7 @@ bool typeHasInfiniteSize(const Type& type, const Scope& scope,
 
     if (type.kind != TypeKind::STRUCT) return false;
 
-    const std::string& qname =
-        std::get<StructTypeInfo>(type.data).struct_name;
+    const std::string& qname = std::get<StructTypeInfo>(type.data).struct_name;
     if (!on_path.insert(qname).second) return true;
 
     const StructSymbol* structure = findStructByQualifiedName(scope, qname);
@@ -665,16 +667,14 @@ void Semantic::checkRecursiveValueStructs() {
                                 findStructByQualifiedName(*m_global, qname);
                             if (structure == nullptr) return;
 
-                            if (structHasInfiniteSize(*structure,
-                                                      *m_global)) {
-                                error(decl.loc,
-                                      "recursive value struct '" + qname +
-                                          "' has infinite size");
+                            if (structHasInfiniteSize(*structure, *m_global)) {
+                                error(decl.loc, "recursive value struct '" +
+                                                    qname +
+                                                    "' has infinite size");
                             }
                         },
                         [&](const std::unique_ptr<Parser::NamespaceDecl>& ns) {
-                            walk(ns->declarations,
-                                 appendName(path, ns->name));
+                            walk(ns->declarations, appendName(path, ns->name));
                         },
                         [&](const auto&) {},
                     },
@@ -881,16 +881,15 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
             return_type = makeError();
         }
 
-        FunctionSignature sig{.name = method->name,
-                              .namespace_qname =
-                                  joinName(m_current_namespace),
-                              .enclosing_struct_qname =
-                                  structure->qualified_name,
-                              .param_types = std::move(param_types),
-                              .param_names = std::move(param_names),
-                              .return_type = *return_type,
-                              .loc = loc,
-                              .decl = method.get()};
+        FunctionSignature sig{
+            .name = method->name,
+            .namespace_qname = joinName(m_current_namespace),
+            .enclosing_struct_qname = structure->qualified_name,
+            .param_types = std::move(param_types),
+            .param_names = std::move(param_names),
+            .return_type = *return_type,
+            .loc = loc,
+            .decl = method.get()};
 
         if (!scope.declareFunction(std::move(sig))) {
             error(loc, "duplicate method overload '" + structure->name +
@@ -1631,7 +1630,11 @@ std::optional<Type> Semantic::tryBuiltinCall(const Parser::CallExpr& c,
             error(loc, "print expects 1 argument");
             return makeError();
         }
-        checkExpr(c.args[0]);
+        Type arg = checkExpr(c.args[0]);
+        if (arg.kind == TypeKind::VOID) {
+            error(loc, "print argument cannot have type void");
+            return makeError();
+        }
         return makePrimitive(TypeKind::VOID);
     }
 
@@ -1825,3 +1828,29 @@ void Semantic::recordDeclType(const void* node, Type t) {
 }
 
 }  // namespace Semantic
+
+/*
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+struct Size {
+    width: int32;
+    height: int32;
+}
+
+struct Rect {
+    position: Point;
+    size: Size;
+}
+
+struct Window {
+    bounds: Rect;
+    title: string;
+}
+
+fn main() -> int {
+    return 0;
+}
+*/

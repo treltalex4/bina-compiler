@@ -116,11 +116,16 @@ bool isConvertibleTo(const Type& from, const Type& to) {
             return to.kind == TypeKind::FLOAT64;
         case TypeKind::UINT8:
             return to.kind == TypeKind::UINT16 || to.kind == TypeKind::UINT32 ||
-                   to.kind == TypeKind::UINT64;
+                   to.kind == TypeKind::UINT64 || to.kind == TypeKind::INT16 ||
+                   to.kind == TypeKind::INT32 || to.kind == TypeKind::INT64 ||
+                   to.kind == TypeKind::FLOAT32 || to.kind == TypeKind::FLOAT64;
         case TypeKind::UINT16:
-            return to.kind == TypeKind::UINT32 || to.kind == TypeKind::UINT64;
+            return to.kind == TypeKind::UINT32 || to.kind == TypeKind::UINT64 ||
+                   to.kind == TypeKind::INT32 || to.kind == TypeKind::INT64 ||
+                   to.kind == TypeKind::FLOAT32 || to.kind == TypeKind::FLOAT64;
         case TypeKind::UINT32:
-            return to.kind == TypeKind::UINT64;
+            return to.kind == TypeKind::UINT64 || to.kind == TypeKind::INT64 ||
+                   to.kind == TypeKind::FLOAT64;
         case TypeKind::FLOAT32:
             return to.kind == TypeKind::FLOAT64;
         default:

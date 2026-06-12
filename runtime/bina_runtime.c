@@ -177,22 +177,62 @@ static char* dup_zero_terminated(bina_str s) {
     return z;
 }
 
+static bool is_digit_char(char c) { return c >= '0' && c <= '9'; }
+
+/* Формат целого: "-"? digit+ — без пробелов, знака "+", hex и прочего,
+ * что молча принимает strtoll. */
+static bool is_strict_int_format(const char* z) {
+    size_t i = 0;
+    if (z[i] == '-') i++;
+    if (!is_digit_char(z[i])) return false;
+    while (is_digit_char(z[i])) i++;
+    return z[i] == '\0';
+}
+
+/* Формат вещественного: "-"? digit+ ("." digit+)? (("e"|"E") ("+"|"-")? digit+)?
+ * — как числовой литерал языка; hex-float и "Infinity" из strtod не проходят. */
+static bool is_strict_float_format(const char* z) {
+    size_t i = 0;
+    if (z[i] == '-') i++;
+    if (!is_digit_char(z[i])) return false;
+    while (is_digit_char(z[i])) i++;
+    if (z[i] == '.') {
+        i++;
+        if (!is_digit_char(z[i])) return false;
+        while (is_digit_char(z[i])) i++;
+    }
+    if (z[i] == 'e' || z[i] == 'E') {
+        i++;
+        if (z[i] == '+' || z[i] == '-') i++;
+        if (!is_digit_char(z[i])) return false;
+        while (is_digit_char(z[i])) i++;
+    }
+    return z[i] == '\0';
+}
+
 int64_t bina_parse_i64(bina_str s, int64_t line) {
     char* z = dup_zero_terminated(s);
+    if (!is_strict_int_format(z)) {
+        free(z);
+        DIE("invalid numeric conversion at line %lld", (long long)line);
+    }
+
     errno = 0;
     char* end = NULL;
     long long v = strtoll(z, &end, 10);
-    bool bad = (end == z) || (*end != '\0');
     bool overflow = (errno == ERANGE);
     free(z);
 
-    if (bad) DIE("invalid numeric conversion at line %lld", (long long)line);
     if (overflow) DIE("integer overflow at line %lld", (long long)line);
     return (int64_t)v;
 }
 
 uint64_t bina_parse_u64(bina_str s, int64_t line) {
     char* z = dup_zero_terminated(s);
+    if (!is_strict_int_format(z)) {
+        free(z);
+        DIE("invalid numeric conversion at line %lld", (long long)line);
+    }
     if (z[0] == '-') {
         free(z);
         DIE("integer overflow at line %lld", (long long)line);
@@ -201,11 +241,9 @@ uint64_t bina_parse_u64(bina_str s, int64_t line) {
     errno = 0;
     char* end = NULL;
     unsigned long long v = strtoull(z, &end, 10);
-    bool bad = (end == z) || (*end != '\0');
     bool overflow = (errno == ERANGE);
     free(z);
 
-    if (bad) DIE("invalid numeric conversion at line %lld", (long long)line);
     if (overflow) DIE("integer overflow at line %lld", (long long)line);
     return (uint64_t)v;
 }
@@ -225,13 +263,15 @@ double bina_parse_f64(bina_str s, int64_t line) {
         return 0.0 / 0.0;
     }
 
-    errno = 0;
+    if (!is_strict_float_format(z)) {
+        free(z);
+        DIE("invalid numeric conversion at line %lld", (long long)line);
+    }
+
     char* end = NULL;
     double v = strtod(z, &end);
-    bool bad = (end == z) || (*end != '\0');
     free(z);
-
-    if (bad) DIE("invalid numeric conversion at line %lld", (long long)line);
+    (void)end;
     return v;
 }
 

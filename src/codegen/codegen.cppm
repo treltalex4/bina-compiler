@@ -31,7 +31,7 @@ class Codegen {
 
     std::ostringstream m_header;
     std::ostringstream m_body;
-    std::ostringstream* m_emit = nullptr;
+    std::vector<std::string> m_alloca_lines;
 
     int m_value_id = 0;
     int m_label_id = 0;
@@ -110,6 +110,8 @@ class Codegen {
     std::string genLvalueAddr(const Parser::Expr& e);
     bool isLvalueExpr(const Parser::Expr& e);
     std::string materializeAddr(const Value& v);
+    std::string emitEntryAlloca(std::string_view source_name,
+                                const Semantic::Type& t);
 
     Value genCompareEq(const Semantic::Type& t, const std::string& lhs_ptr,
                        const std::string& rhs_ptr);
@@ -150,6 +152,9 @@ class Codegen {
                          Parser::NodeLocation loc);
     void emitRangeCheck(const std::string& i64_val, Semantic::TypeKind to,
                         Parser::NodeLocation loc);
+    void emitFloatToIntRangeCheck(const std::string& dval,
+                                  Semantic::TypeKind to,
+                                  Parser::NodeLocation loc);
     Value genShortCircuit(const Parser::BinaryExpr& b, bool is_and);
     void emitPrintArray(const Semantic::Type& at, const std::string& addr);
     void emitPrintStruct(const Semantic::Type& st, const std::string& addr);
