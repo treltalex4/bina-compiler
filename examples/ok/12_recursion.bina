@@ -1,0 +1,116 @@
+// OK: direct recursion, mutual recursion, namespace recursion,
+// overloaded recursion, and method recursion.
+
+struct Counter {
+    value: int32;
+}
+
+impl Counter {
+    fn count_down(self: Counter) -> int32 {
+        if self.value <= 0i32 {
+            return 0i32;
+        }
+
+        let next: Counter = Counter { value: self.value - 1i32 };
+        return 1i32 + next.count_down();
+    }
+}
+
+fn main() -> int {
+    let fact: int32 = factorial(5i32);
+    let fib: int32 = fibonacci(8i32);
+    let even: bool = is_even(10i32);
+    let odd: bool = is_odd(7i32);
+    let sum: int32 = Rec::sum_down(4i32);
+    let ns_mutual: bool = Rec::a(6i32);
+    let depth32: int32 = depth(3i32);
+    let depth64: int64 = depth(4i64);
+    let counter: Counter = Counter { value: 4i32 };
+
+    assert(fact == 120i32);
+    assert(fib == 21i32);
+    assert(even);
+    assert(odd);
+    assert(sum == 10i32);
+    assert(ns_mutual);
+    assert(depth32 == 3i32);
+    assert(depth64 == 4i64);
+    assert(counter.count_down() == 4i32);
+
+    print("recursion ok\n");
+    return 0;
+}
+
+fn factorial(n: int32) -> int32 {
+    if n <= 1i32 {
+        return 1i32;
+    }
+
+    return n * factorial(n - 1i32);
+}
+
+fn fibonacci(n: int32) -> int32 {
+    if n <= 1i32 {
+        return n;
+    }
+
+    return fibonacci(n - 1i32) + fibonacci(n - 2i32);
+}
+
+fn is_even(n: int32) -> bool {
+    if n == 0i32 {
+        return true;
+    }
+
+    return is_odd(n - 1i32);
+}
+
+fn is_odd(n: int32) -> bool {
+    if n == 0i32 {
+        return false;
+    }
+
+    return is_even(n - 1i32);
+}
+
+fn depth(n: int32) -> int32 {
+    if n <= 0i32 {
+        return 0i32;
+    }
+
+    return 1i32 + depth(n - 1i32);
+}
+
+fn depth(n: int64) -> int64 {
+    if n <= 0i64 {
+        return 0i64;
+    }
+
+    return 1i64 + depth(n - 1i64);
+}
+
+namespace Rec {
+    fn sum_down(n: int32) -> int32 {
+        if n <= 0i32 {
+            return 0i32;
+        }
+
+        return n + sum_down(n - 1i32);
+    }
+
+    fn a(n: int32) -> bool {
+        if n == 0i32 {
+            return true;
+        }
+
+        return b(n - 1i32);
+    }
+
+    fn b(n: int32) -> bool {
+        if n == 0i32 {
+            return false;
+        }
+
+        return a(n - 1i32);
+    }
+}
