@@ -99,6 +99,7 @@ class Codegen {
 
     Value genBuiltinPrint(const Parser::CallExpr& c);
     Value genBuiltinInput();
+    Value genBuiltinColumbina();
     Value genBuiltinLen(const Parser::CallExpr& c);
     Value genBuiltinAssert(const Parser::CallExpr& c, Parser::NodeLocation loc);
     Value genBuiltinCode(const Parser::CallExpr& c);
@@ -170,6 +171,8 @@ class Codegen {
     int structFieldIndex(const Semantic::StructSymbol& s,
                          const std::string& field);
     const Semantic::StructSymbol* findStructByQualifiedName(
+        const std::string& qname);
+    const Semantic::FunctionSignature* findStructOpEq(
         const std::string& qname);
     const Semantic::FunctionSignature* findSignatureForFunctionDecl(
         const std::vector<std::string>& ns, const Parser::FunctionDecl& fn);

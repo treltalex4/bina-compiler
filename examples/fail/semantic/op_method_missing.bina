@@ -1,0 +1,11 @@
+// FAIL: Vec2 has no op_add, so Vec2 + int32 is not defined.
+
+struct Vec2 {
+    pub x: int32;
+}
+
+fn main() -> int {
+    let v = Vec2 { x: 1 };
+    let bad = v + 1i32;
+    return bad.x;
+}

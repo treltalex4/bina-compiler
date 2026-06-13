@@ -1,0 +1,153 @@
+// OK: recursive descent evaluator for a fixed token stream.
+// Expression: (12 + 3) * (8 - 2) / 5 == 18
+
+struct Token {
+    pub kind: int32;
+    pub value: int32;
+}
+
+struct ParserState {
+    pub tokens: [16]Token;
+    pub pos: int64;
+}
+
+struct ParseResult {
+    pub value: int32;
+    pub pos: int64;
+}
+
+fn tk_num() -> int32 {
+    return 0i32;
+}
+
+fn tk_plus() -> int32 {
+    return 1i32;
+}
+
+fn tk_minus() -> int32 {
+    return 2i32;
+}
+
+fn tk_star() -> int32 {
+    return 3i32;
+}
+
+fn tk_slash() -> int32 {
+    return 4i32;
+}
+
+fn tk_lparen() -> int32 {
+    return 5i32;
+}
+
+fn tk_rparen() -> int32 {
+    return 6i32;
+}
+
+fn tk_end() -> int32 {
+    return 7i32;
+}
+
+fn make_token(kind: int32, value: int32) -> Token {
+    return Token { kind: kind, value: value };
+}
+
+fn make_state(tokens: [16]Token, pos: int64) -> ParserState {
+    return ParserState { tokens: tokens, pos: pos };
+}
+
+fn make_result(value: int32, pos: int64) -> ParseResult {
+    return ParseResult { value: value, pos: pos };
+}
+
+fn parse_expr(state: ParserState) -> ParseResult {
+    mut left = parse_term(state);
+    mut current = state.tokens[left.pos];
+
+    while current.kind == tk_plus() || current.kind == tk_minus() {
+        if current.kind == tk_plus() {
+            let right = parse_term(make_state(state.tokens, left.pos + 1));
+            left = make_result(left.value + right.value, right.pos);
+        } else {
+            let right = parse_term(make_state(state.tokens, left.pos + 1));
+            left = make_result(left.value - right.value, right.pos);
+        }
+
+        current = state.tokens[left.pos];
+    }
+
+    return left;
+}
+
+fn parse_term(state: ParserState) -> ParseResult {
+    mut left = parse_factor(state);
+    mut current = state.tokens[left.pos];
+
+    while current.kind == tk_star() || current.kind == tk_slash() {
+        if current.kind == tk_star() {
+            let right = parse_factor(make_state(state.tokens, left.pos + 1));
+            left = make_result(left.value * right.value, right.pos);
+        } else {
+            let right = parse_factor(make_state(state.tokens, left.pos + 1));
+            left = make_result(left.value / right.value, right.pos);
+        }
+
+        current = state.tokens[left.pos];
+    }
+
+    return left;
+}
+
+fn parse_factor(state: ParserState) -> ParseResult {
+    let current = state.tokens[state.pos];
+
+    if current.kind == tk_num() {
+        return make_result(current.value, state.pos + 1);
+    }
+
+    if current.kind == tk_lparen() {
+        let inside = parse_expr(make_state(state.tokens, state.pos + 1));
+        let close = state.tokens[inside.pos];
+        assert(close.kind == tk_rparen());
+        return make_result(inside.value, inside.pos + 1);
+    }
+
+    assert(false);
+    return make_result(0i32, state.pos);
+}
+
+fn evaluate(tokens: [16]Token) -> int32 {
+    let result = parse_expr(make_state(tokens, 0));
+    let end = tokens[result.pos];
+    assert(end.kind == tk_end());
+    return result.value;
+}
+
+fn main() -> int {
+    let tokens: [16]Token = [
+        make_token(tk_lparen(), 0),
+        make_token(tk_num(), 12),
+        make_token(tk_plus(), 0),
+        make_token(tk_num(), 3),
+        make_token(tk_rparen(), 0),
+        make_token(tk_star(), 0),
+        make_token(tk_lparen(), 0),
+        make_token(tk_num(), 8),
+        make_token(tk_minus(), 0),
+        make_token(tk_num(), 2),
+        make_token(tk_rparen(), 0),
+        make_token(tk_slash(), 0),
+        make_token(tk_num(), 5),
+        make_token(tk_end(), 0),
+        make_token(tk_end(), 0),
+        make_token(tk_end(), 0),
+    ];
+
+    let value = evaluate(tokens);
+    assert(value == 18i32);
+
+    print("expression result = ");
+    print(value);
+    print("\n");
+    return 0;
+}

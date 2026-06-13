@@ -1,0 +1,65 @@
+// OK: overloaded operators for a user-defined struct.
+
+struct Vec2 {
+    pub x: int32;
+    pub y: int32;
+}
+
+fn vec2(x: int32, y: int32) -> Vec2 {
+    return Vec2 { x: x, y: y };
+}
+
+impl Vec2 {
+    pub fn op_add(self: Vec2, other: Vec2) -> Vec2 {
+        return vec2(self.x + other.x, self.y + other.y);
+    }
+
+    pub fn op_mul(self: Vec2, scale: int32) -> Vec2 {
+        return vec2(self.x * scale, self.y * scale);
+    }
+
+    pub fn op_mul(self: Vec2, scale: int64) -> Vec2 {
+        let narrowed = cast<int32>(scale);
+        return vec2(self.x * narrowed, self.y * narrowed);
+    }
+
+    pub fn op_eq(self: Vec2, other: Vec2) -> bool {
+        // Intentionally compare only x: this proves that == uses op_eq
+        // instead of built-in field-by-field comparison.
+        return self.x == other.x;
+    }
+
+    pub fn op_neg(self: Vec2) -> Vec2 {
+        return vec2(-self.x, -self.y);
+    }
+
+    pub fn op_lt(self: Vec2, other: Vec2) -> bool {
+        let self_len = self.x * self.x + self.y * self.y;
+        let other_len = other.x * other.x + other.y * other.y;
+        return self_len < other_len;
+    }
+}
+
+fn main() -> int {
+    let a = vec2(2, 3);
+    let b = vec2(4, 5);
+
+    let sum = a + b;
+    assert(sum == vec2(6, 8));
+
+    let scaled = a * 2i16;
+    assert(scaled == vec2(4, 6));
+
+    let negated = -a;
+    assert(negated == vec2(-2, -3));
+
+    assert(a != b);
+    assert(a < b);
+
+    let left: [2]Vec2 = [a, b];
+    let right: [2]Vec2 = [vec2(2, 30), vec2(4, 50)];
+    assert(left == right);
+
+    print("operator overloading ok\n");
+    return 0;
+}

@@ -1,0 +1,15 @@
+// FAIL: op_eq must return bool.
+
+struct Vec2 {
+    pub x: int32;
+}
+
+impl Vec2 {
+    pub fn op_eq(self: Vec2, other: Vec2) -> int32 {
+        return self.x - other.x;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

@@ -83,6 +83,65 @@ std::vector<const FunctionSignature*> findQualifiedMethodOverloads(
     return {};
 }
 
+std::optional<std::string> operatorMethodName(TokenType op) {
+    switch (op) {
+        case TokenType::PLUS:
+            return "op_add";
+        case TokenType::MINUS:
+            return "op_sub";
+        case TokenType::STAR:
+            return "op_mul";
+        case TokenType::SLASH:
+            return "op_div";
+        case TokenType::PERCENT:
+            return "op_rem";
+        case TokenType::EQUAL:
+        case TokenType::NOT_EQUAL:
+            return "op_eq";
+        case TokenType::LESS:
+            return "op_lt";
+        case TokenType::LESS_EQUAL:
+            return "op_le";
+        case TokenType::GREATER:
+            return "op_gt";
+        case TokenType::GREATER_EQUAL:
+            return "op_ge";
+        default:
+            return std::nullopt;
+    }
+}
+
+bool isBinaryOperatorMethodName(const std::string& name) {
+    static const std::unordered_set<std::string> names = {
+        "op_add", "op_sub", "op_mul", "op_div", "op_rem",
+        "op_eq",  "op_lt",  "op_le",  "op_gt",  "op_ge",
+    };
+    return names.contains(name);
+}
+
+bool isOperatorMethodName(const std::string& name) {
+    return isBinaryOperatorMethodName(name) || name == "op_neg";
+}
+
+bool operatorMethodMustReturnBool(const std::string& name) {
+    return name == "op_eq" || name == "op_lt" || name == "op_le" ||
+           name == "op_gt" || name == "op_ge";
+}
+
+const FunctionSignature* findStructOpEq(const Scope& scope,
+                                        const std::string& qname) {
+    const Type self_t = makeStruct(qname);
+    for (const auto* sig : findMethodOverloads(scope, qname, "op_eq")) {
+        if (sig->param_types.size() == 2 &&
+            typeEquals(sig->param_types[0], self_t) &&
+            typeEquals(sig->param_types[1], self_t) &&
+            sig->return_type.kind == TypeKind::BOOL) {
+            return sig;
+        }
+    }
+    return nullptr;
+}
+
 std::optional<TypeKind> builtinTypeKind(const std::string& name) {
     static const std::unordered_map<std::string, TypeKind> types = {
         {"int8", TypeKind::INT8},       {"int16", TypeKind::INT16},
@@ -319,7 +378,7 @@ Type floatLiteralType(const std::string& value, const Type* expected) {
 bool isBuiltinFunctionName(const std::string& name) {
     return name == "print" || name == "input" || name == "len" ||
            name == "exit" || name == "panic" || name == "assert" ||
-           name == "code" || name == "char_from";
+           name == "code" || name == "char_from" || name == "columbina";
 }
 
 bool isExplicitCastAllowed(const Type& from, const Type& to) {
@@ -407,6 +466,7 @@ bool structHasInfiniteSize(const StructSymbol& structure, const Scope& scope) {
 }
 
 bool isEqualityComparableType(const Type& type, const Scope& scope,
+                              const std::string& current_impl_struct,
                               std::unordered_set<std::string>& visiting) {
     if (type.kind == TypeKind::ERROR) return true;
 
@@ -417,13 +477,20 @@ bool isEqualityComparableType(const Type& type, const Scope& scope,
 
     if (type.kind == TypeKind::ARRAY) {
         const auto& array = std::get<ArrayTypeInfo>(type.data);
-        return isEqualityComparableType(*array.element_type, scope, visiting);
+        return isEqualityComparableType(*array.element_type, scope,
+                                        current_impl_struct, visiting);
     }
 
     if (type.kind == TypeKind::STRUCT) {
         const std::string& struct_name =
             std::get<StructTypeInfo>(type.data).struct_name;
         if (!visiting.insert(struct_name).second) return false;
+
+        if (const FunctionSignature* op_eq =
+                findStructOpEq(scope, struct_name)) {
+            visiting.erase(struct_name);
+            return op_eq->is_public || struct_name == current_impl_struct;
+        }
 
         const StructSymbol* structure = findStructForType(scope, type);
         if (structure == nullptr) {
@@ -432,7 +499,8 @@ bool isEqualityComparableType(const Type& type, const Scope& scope,
         }
 
         for (const auto& field : structure->fields) {
-            if (!isEqualityComparableType(field.type, scope, visiting)) {
+            if (!isEqualityComparableType(field.type, scope,
+                                          current_impl_struct, visiting)) {
                 visiting.erase(struct_name);
                 return false;
             }
@@ -446,7 +514,8 @@ bool isEqualityComparableType(const Type& type, const Scope& scope,
 }
 
 bool canCompareEquality(const Type& left, const Type& right,
-                        const Scope& scope) {
+                        const Scope& scope,
+                        const std::string& current_impl_struct) {
     if (left.kind == TypeKind::ERROR || right.kind == TypeKind::ERROR) {
         return true;
     }
@@ -458,7 +527,7 @@ bool canCompareEquality(const Type& left, const Type& right,
     if (!typeEquals(left, right)) return false;
 
     std::unordered_set<std::string> visiting;
-    return isEqualityComparableType(left, scope, visiting);
+    return isEqualityComparableType(left, scope, current_impl_struct, visiting);
 }
 
 bool isComparisonOp(TokenType op) {
@@ -885,6 +954,37 @@ void Semantic::collectImpl(const Parser::ImplDecl& impl, Scope& scope,
             return_type = makeError();
         }
 
+        if (isBinaryOperatorMethodName(method->name) &&
+            method->params.size() != 2) {
+            error(loc, "operator method '" + method->name +
+                           "' must take exactly 2 parameters");
+        }
+
+        if (method->name == "op_neg" && method->params.size() != 1) {
+            error(loc, "operator method 'op_neg' must take exactly 1 "
+                       "parameter");
+        }
+
+        if (method->name == "op_eq" && param_types.size() == 2 &&
+            param_types[1].kind != TypeKind::ERROR &&
+            !typeEquals(param_types[1], self_type)) {
+            error(method->params[1].loc,
+                  "operator method 'op_eq' second parameter must have type " +
+                      typeToString(self_type));
+        }
+
+        if (operatorMethodMustReturnBool(method->name) &&
+            return_type->kind != TypeKind::ERROR &&
+            return_type->kind != TypeKind::BOOL) {
+            error(method->return_type.loc,
+                  "operator method '" + method->name + "' must return bool");
+        } else if (isOperatorMethodName(method->name) &&
+                   return_type->kind == TypeKind::VOID) {
+            error(method->return_type.loc,
+                  "operator method '" + method->name +
+                      "' cannot return void");
+        }
+
         FunctionSignature sig{
             .name = method->name,
             .namespace_qname = joinName(m_current_namespace),
@@ -1226,6 +1326,21 @@ Type Semantic::checkBinary(const Parser::BinaryExpr& b,
         return makeError();
     }
 
+    if (left.kind == TypeKind::STRUCT && b.op != TokenType::AND_AND &&
+        b.op != TokenType::OR_OR) {
+        if (auto result = tryOperatorMethod(b, loc, left, right)) {
+            return *result;
+        }
+
+        if (auto name = operatorMethodName(b.op);
+            name && b.op != TokenType::EQUAL &&
+            b.op != TokenType::NOT_EQUAL) {
+            error(loc, "no operator method '" + *name + "' for type " +
+                           typeToString(left));
+            return makeError();
+        }
+    }
+
     if (b.op == TokenType::PLUS && isString(left) && isString(right)) {
         return makePrimitive(TypeKind::STRING);
     }
@@ -1262,7 +1377,8 @@ Type Semantic::checkBinary(const Parser::BinaryExpr& b,
     }
 
     if (b.op == TokenType::EQUAL || b.op == TokenType::NOT_EQUAL) {
-        if (!canCompareEquality(left, right, *m_current_scope)) {
+        if (!canCompareEquality(left, right, *m_current_scope,
+                                m_current_impl_struct)) {
             error(loc, "cannot compare " + typeToString(left) + " and " +
                            typeToString(right));
             return makeError();
@@ -1314,6 +1430,46 @@ Type Semantic::checkUnary(const Parser::UnaryExpr& u, Parser::NodeLocation loc,
 
         Type operand = checkExpr(u.operand, expected);
         if (operand.kind == TypeKind::ERROR) return makeError();
+        if (operand.kind == TypeKind::STRUCT) {
+            const std::string& qname =
+                std::get<StructTypeInfo>(operand.data).struct_name;
+            auto overloads =
+                findMethodOverloads(*m_current_scope, qname, "op_neg");
+            if (overloads.empty()) {
+                error(loc, "no operator method 'op_neg' for type " +
+                               typeToString(operand));
+                return makeError();
+            }
+
+            OverloadResolution resolved = resolveOverload(overloads, {operand});
+            if (resolved.status == OverloadResult::OK) {
+                if (!resolved.chosen->is_public &&
+                    qname != m_current_impl_struct) {
+                    error(loc, "operator method 'op_neg' of struct '" + qname +
+                                   "' is private");
+                    return makeError();
+                }
+                if (resolved.chosen->return_type.kind == TypeKind::VOID) {
+                    error(loc, "operator method 'op_neg' cannot return void");
+                    return makeError();
+                }
+
+                m_call_targets[&u] = resolved.chosen;
+                return resolved.chosen->return_type;
+            }
+
+            if (resolved.status == OverloadResult::AMBIGUOUS) {
+                error(loc, "ambiguous operator method 'op_neg' for type " +
+                               typeToString(operand));
+            } else {
+                error(loc, "no matching overload for operator method 'op_neg' "
+                           "on type " +
+                               typeToString(operand));
+            }
+
+            return makeError();
+        }
+
         if (!isArithmetic(operand)) {
             error(loc, "unary '-' operand must be numeric");
             return makeError();
@@ -1333,6 +1489,54 @@ Type Semantic::checkUnary(const Parser::UnaryExpr& u, Parser::NodeLocation loc,
 
     error(loc, "unsupported unary operator");
     return makeError();
+}
+
+std::optional<Type> Semantic::tryOperatorMethod(const Parser::BinaryExpr& b,
+                                                Parser::NodeLocation loc,
+                                                const Type& left,
+                                                const Type& right) {
+    auto name = operatorMethodName(b.op);
+    if (!name) return std::nullopt;
+
+    const std::string& qname =
+        std::get<StructTypeInfo>(left.data).struct_name;
+    auto overloads = findMethodOverloads(*m_current_scope, qname, *name);
+    if (overloads.empty()) return std::nullopt;
+
+    OverloadResolution resolved = resolveOverload(overloads, {left, right});
+    if (resolved.status == OverloadResult::NO_MATCH) {
+        error(loc, "no matching overload for operator method '" + *name +
+                       "' on type " + typeToString(left));
+        return makeError();
+    }
+
+    if (resolved.status == OverloadResult::AMBIGUOUS) {
+        error(loc, "ambiguous operator method '" + *name + "' for type " +
+                       typeToString(left));
+        return makeError();
+    }
+
+    if (!resolved.chosen->is_public && qname != m_current_impl_struct) {
+        error(loc, "operator method '" + *name + "' of struct '" + qname +
+                       "' is private");
+        return makeError();
+    }
+
+    if (operatorMethodMustReturnBool(*name) &&
+        resolved.chosen->return_type.kind != TypeKind::BOOL) {
+        error(loc, "operator method '" + *name + "' must return bool");
+        return makeError();
+    }
+
+    if (!operatorMethodMustReturnBool(*name) &&
+        resolved.chosen->return_type.kind == TypeKind::VOID) {
+        error(loc, "operator method '" + *name + "' cannot return void");
+        return makeError();
+    }
+
+    m_call_targets[&b] = resolved.chosen;
+    if (b.op == TokenType::NOT_EQUAL) return makePrimitive(TypeKind::BOOL);
+    return resolved.chosen->return_type;
 }
 
 Type Semantic::checkCall(const Parser::CallExpr& c, Parser::NodeLocation loc) {
@@ -1691,6 +1895,14 @@ std::optional<Type> Semantic::tryBuiltinCall(const Parser::CallExpr& c,
             return makeError();
         }
         return makePrimitive(TypeKind::STRING);
+    }
+
+    if (name == "columbina") {
+        if (!c.args.empty()) {
+            error(loc, "columbina expects 0 arguments");
+            return makeError();
+        }
+        return makePrimitive(TypeKind::VOID);
     }
 
     if (name == "len") {

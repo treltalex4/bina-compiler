@@ -1,0 +1,4 @@
+fn main() -> int {
+    columbina();
+    return 0;
+}

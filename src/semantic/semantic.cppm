@@ -77,6 +77,10 @@ class Semantic {
     Type checkBinary(const Parser::BinaryExpr& b, Parser::NodeLocation loc);
     Type checkUnary(const Parser::UnaryExpr& u, Parser::NodeLocation loc,
                     const Type* expected = nullptr);
+    std::optional<Type> tryOperatorMethod(const Parser::BinaryExpr& b,
+                                          Parser::NodeLocation loc,
+                                          const Type& left,
+                                          const Type& right);
     Type checkCall(const Parser::CallExpr& c, Parser::NodeLocation loc);
     Type checkMethodCall(const Parser::MethodCall& c, Parser::NodeLocation loc);
     Type checkIndex(const Parser::IndexExpr& ix, Parser::NodeLocation loc);

@@ -1,0 +1,15 @@
+// FAIL: binary operator methods must take exactly self and one right operand.
+
+struct Vec2 {
+    pub x: int32;
+}
+
+impl Vec2 {
+    pub fn op_add(self: Vec2) -> Vec2 {
+        return self;
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

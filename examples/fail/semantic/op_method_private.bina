@@ -1,0 +1,18 @@
+// FAIL: private operator methods are not available outside the impl.
+
+struct Vec2 {
+    pub x: int32;
+}
+
+impl Vec2 {
+    fn op_add(self: Vec2, other: Vec2) -> Vec2 {
+        return Vec2 { x: self.x + other.x };
+    }
+}
+
+fn main() -> int {
+    let a = Vec2 { x: 1 };
+    let b = Vec2 { x: 2 };
+    let c = a + b;
+    return c.x;
+}

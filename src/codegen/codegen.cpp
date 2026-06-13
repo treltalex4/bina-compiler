@@ -269,6 +269,7 @@ void Codegen::emitRuntimeDecls() {
     m_header << "declare void @bina_print_char(i32)\n";
     m_header << "declare void @bina_print_str(ptr, i64)\n";
     m_header << "declare { ptr, i64 } @bina_input()\n";
+    m_header << "declare void @bina_columbina()\n";
     m_header << "declare void @bina_panic(ptr, i64, i64)\n";
     m_header << "declare void @bina_assert(i1, i64)\n";
     m_header << "declare void @bina_index_oob(i64, i64, i64)\n";
@@ -709,6 +710,28 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
     using TK = Semantic::TypeKind;
     using TT = TokenType;
 
+    if (auto it = m_typed.call_targets.find(&b);
+        it != m_typed.call_targets.end()) {
+        const Semantic::FunctionSignature* sig = it->second;
+        Value lhs = genExpr(b.left);
+        Value rhs = genExpr(b.right);
+        lhs = emitConversion(lhs, sig->param_types[0], false, loc);
+        rhs = emitConversion(rhs, sig->param_types[1], false, loc);
+
+        const std::string result = freshValue();
+        m_body << "  " << result << " = call " << llvmType(sig->return_type)
+               << " " << mangle(*sig) << "(" << llvmType(sig->param_types[0])
+               << " " << lhs.ssa << ", " << llvmType(sig->param_types[1])
+               << " " << rhs.ssa << ")\n";
+
+        if (b.op == TT::NOT_EQUAL) {
+            const std::string neq = freshValue();
+            m_body << "  " << neq << " = xor i1 " << result << ", true\n";
+            return {neq, Semantic::makePrimitive(TK::BOOL)};
+        }
+        return {result, sig->return_type};
+    }
+
     if (b.op == TT::AND_AND) return genShortCircuit(b, true);
     if (b.op == TT::OR_OR) return genShortCircuit(b, false);
 
@@ -872,6 +895,19 @@ Codegen::Value Codegen::genBinary(const Parser::BinaryExpr& b,
 Codegen::Value Codegen::genUnary(const Parser::UnaryExpr& u,
                                  const Semantic::Type& result_t,
                                  Parser::NodeLocation loc) {
+    if (auto it = m_typed.call_targets.find(&u);
+        it != m_typed.call_targets.end()) {
+        const Semantic::FunctionSignature* sig = it->second;
+        Value operand = genExpr(u.operand);
+        operand = emitConversion(operand, sig->param_types[0], false, loc);
+
+        const std::string result = freshValue();
+        m_body << "  " << result << " = call " << llvmType(sig->return_type)
+               << " " << mangle(*sig) << "(" << llvmType(sig->param_types[0])
+               << " " << operand.ssa << ")\n";
+        return {result, sig->return_type};
+    }
+
     if (u.op == TokenType::MINUS) {
         if (Semantic::isInteger(result_t) && isSigned(result_t.kind)) {
             if (const auto* literal =
@@ -916,6 +952,7 @@ Codegen::Value Codegen::genCall(const Parser::CallExpr& c,
         const std::string& name = c.name.parts[0];
         if (name == "print") return genBuiltinPrint(c);
         if (name == "input") return genBuiltinInput();
+        if (name == "columbina") return genBuiltinColumbina();
         if (name == "len") return genBuiltinLen(c);
         if (name == "assert") return genBuiltinAssert(c, loc);
         if (name == "code") return genBuiltinCode(c);
@@ -1151,6 +1188,11 @@ Codegen::Value Codegen::genBuiltinInput() {
     return {ssa, Semantic::makePrimitive(Semantic::TypeKind::STRING)};
 }
 
+Codegen::Value Codegen::genBuiltinColumbina() {
+    m_body << "  call void @bina_columbina()\n";
+    return {"", Semantic::makePrimitive(Semantic::TypeKind::VOID)};
+}
+
 Codegen::Value Codegen::genBuiltinLen(const Parser::CallExpr& c) {
     Value v = genExpr(c.args[0]);
     if (v.type.kind == Semantic::TypeKind::STRING) {
@@ -1354,6 +1396,17 @@ Codegen::Value Codegen::genCompareEq(const Semantic::Type& t,
 
     if (t.kind == TK::STRUCT) {
         const auto& info = std::get<Semantic::StructTypeInfo>(t.data);
+        if (const Semantic::FunctionSignature* op_eq =
+                findStructOpEq(info.struct_name)) {
+            Value lhs = loadValueAtAddr(t, lhs_ptr);
+            Value rhs = loadValueAtAddr(t, rhs_ptr);
+            const std::string eq = freshValue();
+            m_body << "  " << eq << " = call i1 " << mangle(*op_eq) << "("
+                   << llvmType(t) << " " << lhs.ssa << ", " << llvmType(t)
+                   << " " << rhs.ssa << ")\n";
+            return {eq, Semantic::makePrimitive(TK::BOOL)};
+        }
+
         const Semantic::StructSymbol* structure =
             findStructByQualifiedName(info.struct_name);
         if (structure == nullptr) {
@@ -2124,6 +2177,35 @@ const Semantic::StructSymbol* Codegen::findStructByQualifiedName(
     if (const auto* structure =
             std::get_if<const Semantic::StructSymbol*>(&found.value())) {
         return *structure;
+    }
+    return nullptr;
+}
+
+const Semantic::FunctionSignature* Codegen::findStructOpEq(
+    const std::string& qname) {
+    auto parts = splitQualifiedName(qname);
+    if (parts.empty()) return nullptr;
+
+    const Semantic::Scope* scope = m_typed.global_scope.get();
+    if (parts.size() > 1) {
+        std::vector<std::string> ns(parts.begin(), parts.end() - 1);
+        auto found = scope->findByPath(ns);
+        if (!found) return nullptr;
+        const auto* ns_scope =
+            std::get_if<const Semantic::Scope*>(&found.value());
+        if (ns_scope == nullptr) return nullptr;
+        scope = *ns_scope;
+    }
+
+    const Semantic::Type self_t = Semantic::makeStruct(qname);
+    const std::string key = parts.back() + "::op_eq";
+    for (const auto* sig : scope->findFunctions(key)) {
+        if (sig->param_types.size() == 2 &&
+            Semantic::typeEquals(sig->param_types[0], self_t) &&
+            Semantic::typeEquals(sig->param_types[1], self_t) &&
+            sig->return_type.kind == Semantic::TypeKind::BOOL) {
+            return sig;
+        }
     }
     return nullptr;
 }
